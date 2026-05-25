@@ -5,7 +5,8 @@
  * AnimalView API - animal movement tracks and nearby street-level imagery
  * OpenAPI spec version: 0.1.0
  */
+import type { Study } from './study';
 
-export interface HealthStatus {
-  status: string;
-}
+export type ListStudies200 = {
+  studies: Study[];
+};

@@ -1,0 +1,264 @@
+Below is a **complete Replit prompt** you can paste into Replit Agent.
+
+```text
+Build a web app called AnimalView: a Bear 71-inspired animal movement POV player.
+
+Goal:
+Let a user select a species/study/individual from Movebank, load GPS tracks, find nearby Google Street View or Mapillary 360/street-level imagery, then play the animal track on a map with synchronized “images the animal might have seen”.
+
+Use:
+- React + Vite frontend
+- Node/Express backend
+- MapLibre GL for map
+- Turf.js for geospatial calculations
+- SQLite for local cache
+- Optional MapillaryJS viewer
+- Google Street View Static API metadata endpoint
+
+Important references:
+Movebank supports HTTP CSV and JSON access to movement data. Google Street View metadata can return whether imagery exists near a coordinate, plus panorama ID, lat/lon, date and copyright. MapillaryJS can display interactive street-level imagery in the browser. Use these APIs accordingly. 
+```
+
+## Product behavior
+
+```text
+Main screen layout:
+
+Left sidebar:
+- App title: AnimalView
+- Species selector
+- Study selector
+- Individual selector
+- Date range selector
+- Search radius slider: 25m / 50m / 100m / 250m
+- Button: Load track
+- Button: Find imagery
+- Button: Play
+
+Main map:
+- Animal track polyline
+- Animal moving marker
+- Matched image points
+- Street View matches in one color
+- Mapillary matches in another color
+
+Bottom timeline:
+- Play / pause
+- Speed selector: 1x, 5x, 20x, 100x
+- Current animal timestamp
+- Current GPS coordinate
+- Nearest imagery timestamp/date when available
+- Confidence label: High / Medium / Low
+
+Right panel:
+- Selected imagery preview
+- Google Street View static image or panorama link
+- MapillaryJS viewer if Mapillary image exists
+- Explanation:
+  “This is not the exact animal view. It is nearby street-level imagery within X meters.”
+```
+
+## Backend endpoints
+
+```text
+GET /api/species
+Returns a curated list of demo species with Movebank study IDs.
+
+GET /api/studies?species=...
+Returns Movebank studies matching the species.
+
+GET /api/individuals?study_id=...
+Returns individuals from a Movebank study.
+
+GET /api/track?study_id=...&individual_id=...&from=...&to=...
+Downloads movement points from Movebank and returns GeoJSON.
+
+POST /api/match-imagery
+Input:
+{
+  "points": [
+    {
+      "lat": 43.1,
+      "lon": 5.9,
+      "timestamp": "2024-01-01T12:00:00Z"
+    }
+  ],
+  "radius": 50,
+  "providers": ["google", "mapillary"]
+}
+
+Output:
+{
+  "matches": [
+    {
+      "track_point_index": 42,
+      "provider": "google",
+      "distance_m": 31,
+      "pano_id": "...",
+      "image_lat": 43.1001,
+      "image_lon": 5.9001,
+      "image_date": "2022-08",
+      "confidence": "medium",
+      "heading": 127,
+      "preview_url": "/api/streetview-image?pano_id=...&heading=127"
+    }
+  ]
+}
+```
+
+## Environment variables
+
+```text
+MOVEbank_USERNAME=
+MOVEbank_PASSWORD=
+GOOGLE_MAPS_API_KEY=
+MAPILLARY_ACCESS_TOKEN=
+```
+
+Movebank may require credentials depending on the study. Public studies should work when available, but handle restricted studies gracefully.
+
+## Data model
+
+```sql
+CREATE TABLE track_points (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  study_id TEXT,
+  individual_id TEXT,
+  timestamp TEXT,
+  lat REAL,
+  lon REAL
+);
+
+CREATE TABLE imagery_matches (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  study_id TEXT,
+  individual_id TEXT,
+  track_point_index INTEGER,
+  provider TEXT,
+  pano_id TEXT,
+  image_id TEXT,
+  image_lat REAL,
+  image_lon REAL,
+  image_date TEXT,
+  distance_m REAL,
+  heading REAL,
+  confidence TEXT,
+  metadata_json TEXT
+);
+```
+
+## Matching logic
+
+```text
+1. Load track points.
+2. Downsample points to avoid API abuse:
+   - keep one point every 50–200 meters, or one point every N minutes.
+3. For each sampled point:
+   - Query Google Street View metadata:
+     location=lat,lon
+     radius=selected radius
+     key=GOOGLE_MAPS_API_KEY
+   - If status is OK, store panorama metadata.
+4. Query Mapillary images near the coordinate using bounding box or proximity search.
+5. Compute distance between animal point and image point using Turf.js.
+6. Estimate animal heading:
+   - bearing from previous track point to next track point.
+7. Compute confidence:
+   - High: image within 25m
+   - Medium: image within 100m
+   - Low: image within 250m
+8. Sort matches by:
+   - nearest distance
+   - closest image date to animal timestamp, if available
+   - provider availability
+```
+
+## UI copy
+
+```text
+AnimalView reconstructs possible visual encounters along animal movement tracks.
+
+This is not proof of what the animal saw. It is a spatial approximation using public street-level imagery near recorded GPS points.
+```
+
+## Files to create
+
+```text
+/package.json
+/server/index.js
+/server/movebank.js
+/server/googleStreetView.js
+/server/mapillary.js
+/server/cache.js
+/src/App.jsx
+/src/components/Sidebar.jsx
+/src/components/MapView.jsx
+/src/components/TimelinePlayer.jsx
+/src/components/ImagePanel.jsx
+/src/lib/geo.js
+/src/styles.css
+/.env.example
+/README.md
+```
+
+## README must explain
+
+```text
+1. How to run in Replit.
+2. How to add API keys.
+3. How to use demo mode without keys.
+4. API limitations.
+5. Ethical note: avoid exposing sensitive species locations.
+6. Attribution requirements for Google and Mapillary.
+```
+
+## Demo mode
+
+```text
+If API keys are missing, create a demo track with 50 fake points around Banff / Jasper / Marseille Calanques and fake imagery matches.
+
+Demo mode must still show:
+- moving animal marker
+- track playback
+- imagery panel
+- confidence labels
+```
+
+## Important constraints
+
+```text
+Do not claim the animal actually saw the image.
+Use wording: “nearby possible view”, “candidate visual context”, “potential image near the track”.
+
+Protect sensitive species:
+- Add option to blur coordinates by 1–10 km.
+- Do not expose exact coordinates for endangered species.
+- Add warning before loading exact public tracks.
+
+Respect API limits:
+- cache metadata
+- batch slowly
+- downsample tracks
+- never query every raw GPS point by default
+```
+
+## Visual style
+
+```text
+Bear 71-inspired:
+- dark cinematic interface
+- glowing animal track
+- minimal typography
+- ambient timeline
+- map as main narrative surface
+- right panel as “memory/image fragment”
+```
+
+Final output:
+A working Replit app with demo mode first, then real API integrations.
+
+```
+
+Use this as the **first Replit Agent instruction**. Then ask Replit to “implement demo mode first, then API connectors.”
+::contentReference[oaicite:0]{index=0}
+```

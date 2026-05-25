@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
-}
+export type GetProviders200 = {
+  google: boolean;
+  mapillary: boolean;
+  movebank: boolean;
+  demoMode: boolean;
+};

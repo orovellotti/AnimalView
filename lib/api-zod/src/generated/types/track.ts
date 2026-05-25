@@ -5,7 +5,12 @@
  * AnimalView API - animal movement tracks and nearby street-level imagery
  * OpenAPI spec version: 0.1.0
  */
+import type { TrackPoint } from './trackPoint';
 
-export interface HealthStatus {
-  status: string;
+export interface Track {
+  studyId: string;
+  individualId: string;
+  /** real | demo */
+  mode: string;
+  points: TrackPoint[];
 }

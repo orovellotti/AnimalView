@@ -5,7 +5,10 @@
  * AnimalView API - animal movement tracks and nearby street-level imagery
  * OpenAPI spec version: 0.1.0
  */
+import type { ImageryMatch } from './imageryMatch';
 
-export interface HealthStatus {
-  status: string;
-}
+export type MatchImagery200 = {
+  /** real | demo */
+  mode: string;
+  matches: ImageryMatch[];
+};
