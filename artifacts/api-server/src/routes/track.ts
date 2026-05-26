@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { GetTrackQueryParams, GetTrackResponse } from "@workspace/api-zod";
 import { generateDemoTrack } from "../lib/demoData";
 import { hasMovebank } from "../lib/providers";
+import { isRealStudy, getRealTrack } from "../lib/realTracks";
 
 const router: IRouter = Router();
 
@@ -56,6 +57,19 @@ router.get("/track", async (req, res) => {
   const { studyId, individualId, from, to } = parsed.data;
   let points: { lat: number; lon: number; timestamp: string }[] | null = null;
   let mode = "demo";
+  if (isRealStudy(studyId)) {
+    const real = getRealTrack(studyId, individualId);
+    if (real && real.length > 0) {
+      const data = GetTrackResponse.parse({
+        studyId,
+        individualId,
+        mode: "real",
+        points: real,
+      });
+      res.json(data);
+      return;
+    }
+  }
   if (hasMovebank() && !studyId.startsWith("demo-")) {
     try {
       points = await fetchMovebankTrack(studyId, individualId, from, to);

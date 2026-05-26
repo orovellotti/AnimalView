@@ -16,6 +16,11 @@ import {
   searchMovebankStudies,
   listMovebankIndividuals,
 } from "../lib/movebank";
+import {
+  isRealStudy,
+  listRealStudies,
+  listRealIndividuals,
+} from "../lib/realTracks";
 
 const router: IRouter = Router();
 
@@ -31,6 +36,7 @@ router.get("/studies", async (req, res) => {
     return;
   }
   const demoStudies = DEMO_STUDIES[parsed.data.species] ?? [];
+  const bundledStudies = listRealStudies(parsed.data.species);
   let realStudies: typeof demoStudies = [];
   if (hasMovebank()) {
     const sp = DEMO_SPECIES.find((s) => s.id === parsed.data.species);
@@ -43,7 +49,7 @@ router.get("/studies", async (req, res) => {
     }
   }
   const data = ListStudiesResponse.parse({
-    studies: [...realStudies, ...demoStudies],
+    studies: [...bundledStudies, ...realStudies, ...demoStudies],
   });
   res.json(data);
 });
@@ -57,6 +63,11 @@ router.get("/individuals", async (req, res) => {
   const { studyId } = parsed.data;
   if (studyId.startsWith("demo-")) {
     const individuals = DEMO_INDIVIDUALS[studyId] ?? [];
+    res.json(ListIndividualsResponse.parse({ individuals }));
+    return;
+  }
+  if (isRealStudy(studyId)) {
+    const individuals = listRealIndividuals(studyId);
     res.json(ListIndividualsResponse.parse({ individuals }));
     return;
   }
