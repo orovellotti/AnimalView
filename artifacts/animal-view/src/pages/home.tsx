@@ -63,6 +63,50 @@ export default function Home() {
     setActiveMatch(null);
   };
 
+  // Auto-select the real wolf (Boutin Alberta study, Wolf 13791) on first load.
+  const didAutoSelectRef = useRef(false);
+  useEffect(() => {
+    if (didAutoSelectRef.current) return;
+    if (!speciesReq.data?.species) return;
+    if (speciesId || studyId || individualId) {
+      didAutoSelectRef.current = true;
+      return;
+    }
+    const wolf = speciesReq.data.species.find((s) => s.id === "wolf");
+    if (wolf) {
+      setSpeciesId("wolf");
+      didAutoSelectRef.current = true;
+    }
+  }, [speciesReq.data, speciesId, studyId, individualId]);
+
+  const didAutoStudyRef = useRef(false);
+  useEffect(() => {
+    if (didAutoStudyRef.current) return;
+    if (speciesId !== "wolf") return;
+    const boutin = studiesReq.data?.studies?.find(
+      (s) => s.id === "boutin-alberta-wolf",
+    );
+    if (boutin && !studyId) {
+      setStudyId("boutin-alberta-wolf");
+      didAutoStudyRef.current = true;
+    }
+  }, [speciesId, studiesReq.data, studyId]);
+
+  const didAutoIndividualRef = useRef(false);
+  useEffect(() => {
+    if (didAutoIndividualRef.current) return;
+    if (studyId !== "boutin-alberta-wolf") return;
+    const wolfInd = individualsReq.data?.individuals?.find(
+      (i) => i.id === "13791",
+    );
+    if (wolfInd && !individualId) {
+      setIndividualId("13791");
+      didAutoIndividualRef.current = true;
+      setIsTracking(true);
+      setCurrentTimeIndex(0);
+    }
+  }, [studyId, individualsReq.data, individualId]);
+
   const handleFindImagery = async () => {
     if (!trackReq.data?.points) return;
     try {
