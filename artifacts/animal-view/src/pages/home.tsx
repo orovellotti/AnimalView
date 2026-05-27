@@ -27,7 +27,7 @@ export default function Home() {
   const [speciesId, setSpeciesId] = useState<string>("");
   const [studyId, setStudyId] = useState<string>("");
   const [individualId, setIndividualId] = useState<string>("");
-  const [radius, setRadius] = useState<number>(50);
+  const [radius, setRadius] = useState<number>(2000);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -114,7 +114,7 @@ export default function Home() {
         data: {
           points: trackReq.data.points,
           radius,
-          providers: ["google", "mapillary"]
+          providers: ["google", "mapillary", "wikimedia"]
         }
       });
       setImageryMatches(res.matches || []);
@@ -122,6 +122,17 @@ export default function Home() {
       console.error("Imagery error:", e);
     }
   };
+
+  // Auto-fetch imagery once the real wolf track has loaded.
+  const didAutoImageryRef = useRef(false);
+  useEffect(() => {
+    if (didAutoImageryRef.current) return;
+    if (!trackReq.data?.points || trackReq.data.points.length === 0) return;
+    if (matchImageryMutation.isPending) return;
+    didAutoImageryRef.current = true;
+    handleFindImagery();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackReq.data]);
 
   const trackGeojson = useMemo(() => {
     if (!trackReq.data?.points || trackReq.data.points.length === 0) return null;

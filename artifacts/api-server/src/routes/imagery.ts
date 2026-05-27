@@ -121,6 +121,78 @@ async function mapillaryNearby(
   return result;
 }
 
+async function wikimediaNearby(
+  lat: number,
+  lon: number,
+  radius: number,
+): Promise<{
+  id: string;
+  lat: number;
+  lon: number;
+  title: string;
+  thumbUrl: string;
+  descriptionUrl: string;
+} | null> {
+  const cacheKey = `w:${lat.toFixed(4)}:${lon.toFixed(4)}:${radius}`;
+  if (metadataCache.has(cacheKey)) {
+    return metadataCache.get(cacheKey) as never;
+  }
+  // gsradius capped at 10000m by Wikimedia; widen narrow search radii.
+  const r = Math.min(10000, Math.max(radius, 5000));
+  const url =
+    `https://commons.wikimedia.org/w/api.php?` +
+    `action=query&format=json&origin=*` +
+    `&generator=geosearch&ggsnamespace=6&ggslimit=1` +
+    `&ggsradius=${r}&ggscoord=${lat}%7C${lon}` +
+    `&prop=imageinfo|coordinates&iiprop=url|extmetadata&iiurlwidth=640`;
+  const resp = await fetch(url, {
+    headers: { "User-Agent": "AnimalView/1.0 (open-source bird/wolf tracker)" },
+  });
+  if (!resp.ok) {
+    metadataCache.set(cacheKey, null);
+    return null;
+  }
+  const j = (await resp.json()) as {
+    query?: {
+      pages?: Record<
+        string,
+        {
+          pageid: number;
+          title: string;
+          coordinates?: { lat: number; lon: number }[];
+          imageinfo?: {
+            thumburl?: string;
+            descriptionurl?: string;
+            extmetadata?: { DateTimeOriginal?: { value?: string } };
+          }[];
+        }
+      >;
+    };
+  };
+  const pages = j.query?.pages;
+  if (!pages) {
+    metadataCache.set(cacheKey, null);
+    return null;
+  }
+  const first = Object.values(pages)[0];
+  const info = first?.imageinfo?.[0];
+  const coord = first?.coordinates?.[0];
+  if (!first || !info?.thumburl || !coord) {
+    metadataCache.set(cacheKey, null);
+    return null;
+  }
+  const result = {
+    id: String(first.pageid),
+    lat: coord.lat,
+    lon: coord.lon,
+    title: first.title,
+    thumbUrl: info.thumburl,
+    descriptionUrl: info.descriptionurl ?? "",
+  };
+  metadataCache.set(cacheKey, result);
+  return result;
+}
+
 router.get("/providers", (_req, res) => {
   const data = GetProvidersResponse.parse({
     google: hasGoogle(),
@@ -143,9 +215,13 @@ router.post("/match-imagery", async (req, res) => {
     Math.max(80, radius * 2),
   );
   const matches: Match[] = [];
-  const wantGoogle = providers.includes("google");
-  const wantMapillary = providers.includes("mapillary");
-  const demo = isDemoMode() || (!hasGoogle() && !hasMapillary());
+  const wantGoogle = providers.includes("google") && hasGoogle();
+  const wantMapillary = providers.includes("mapillary") && hasMapillary();
+  // Wikimedia is always available (no API key needed); include it whenever
+  // requested OR as a fallback when no other real provider is configured.
+  const wantWikimedia =
+    providers.includes("wikimedia") || (!wantGoogle && !wantMapillary);
+  const demo = !wantGoogle && !wantMapillary && !wantWikimedia;
 
   if (demo) {
     // Generate deterministic demo matches every ~3rd sampled point
@@ -229,6 +305,27 @@ router.post("/match-imagery", async (req, res) => {
         }
       } catch (err) {
         req.log.warn({ err }, "mapillary fetch failed");
+      }
+    }
+    if (wantWikimedia) {
+      try {
+        const w = await wikimediaNearby(point.lat, point.lon, radius);
+        if (w) {
+          const distanceM = haversineMeters(point, { lat: w.lat, lon: w.lon });
+          matches.push({
+            trackPointIndex: originalIndex,
+            provider: "wikimedia",
+            distanceM,
+            imageId: w.id,
+            imageLat: w.lat,
+            imageLon: w.lon,
+            heading,
+            confidence: confidenceForDistance(distanceM),
+            previewUrl: w.thumbUrl,
+          });
+        }
+      } catch (err) {
+        req.log.warn({ err }, "wikimedia fetch failed");
       }
     }
   }
