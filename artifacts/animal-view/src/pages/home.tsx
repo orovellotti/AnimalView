@@ -28,6 +28,7 @@ export default function Home() {
   const [studyId, setStudyId] = useState<string>("");
   const [individualId, setIndividualId] = useState<string>("");
   const [radius, setRadius] = useState<number>(2000);
+  const [showHumanPressure, setShowHumanPressure] = useState<boolean>(false);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -256,12 +257,40 @@ export default function Home() {
             </Label>
             <Slider
               value={[radius]}
-              min={10}
-              max={200}
-              step={10}
+              min={500}
+              max={10000}
+              step={500}
               onValueChange={([val]) => setRadius(val)}
               className="py-2"
             />
+          </div>
+
+          <div className="pt-4 border-t border-border">
+            <button
+              type="button"
+              onClick={() => setShowHumanPressure((v) => !v)}
+              className={`w-full font-mono uppercase tracking-widest text-xs h-10 px-3 rounded border transition-all flex items-center justify-between ${
+                showHumanPressure
+                  ? "bg-primary/15 text-primary border-primary/40 shadow-[0_0_12px_rgba(234,179,8,0.25)]"
+                  : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:border-foreground/40"
+              }`}
+            >
+              <span>Human Pressure</span>
+              <span
+                className={`inline-block w-8 h-4 rounded-full relative transition-colors ${
+                  showHumanPressure ? "bg-primary/60" : "bg-muted"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-all ${
+                    showHumanPressure ? "left-4" : "left-0.5"
+                  }`}
+                />
+              </span>
+            </button>
+            <p className="text-[10px] text-muted-foreground/60 leading-relaxed font-mono mt-2">
+              Overlay roads, buildings &amp; industrial sites from OpenStreetMap to reveal how human infrastructure crosses the animal&apos;s range.
+            </p>
           </div>
 
           <div className="pt-6 space-y-3">
@@ -299,6 +328,31 @@ export default function Home() {
           mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
           maplibregl={maplibregl as any}
         >
+          {showHumanPressure && (
+            <Source
+              id="human-pressure"
+              type="raster"
+              tiles={[
+                "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+                "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+                "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+                "https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+              ]}
+              tileSize={256}
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>'
+            >
+              <Layer
+                id="human-pressure-layer"
+                type="raster"
+                paint={{
+                  "raster-opacity": 0.45,
+                  "raster-contrast": 0.3,
+                  "raster-saturation": -0.6,
+                }}
+              />
+            </Source>
+          )}
+
           {trackGeojson && (
             <Source id="track" type="geojson" data={trackGeojson as any}>
               <Layer
