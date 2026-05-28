@@ -55,6 +55,8 @@ export default function Home() {
   const [radius, setRadius] = useState<number>(2000);
   const [showHumanPressure, setShowHumanPressure] = useState<boolean>(false);
 
+  const [basemap, setBasemap] = useState<"dark" | "satellite">("dark");
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [currentTimeIndex, setCurrentTimeIndex] = useState(0);
@@ -263,6 +265,43 @@ export default function Home() {
   };
 
   const trackLineColor = mode === "sim" ? "hsl(180, 90%, 55%)" : "hsl(40, 90%, 55%)";
+
+  const mapStyleConfig = useMemo<any>(() => {
+    if (basemap === "satellite") {
+      return {
+        version: 8,
+        sources: {
+          "esri-satellite": {
+            type: "raster",
+            tiles: [
+              "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            ],
+            tileSize: 256,
+            attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics",
+            maxzoom: 19,
+          },
+          "esri-labels": {
+            type: "raster",
+            tiles: [
+              "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+            ],
+            tileSize: 256,
+            maxzoom: 19,
+          },
+        },
+        layers: [
+          { id: "esri-satellite", type: "raster", source: "esri-satellite" },
+          {
+            id: "esri-labels",
+            type: "raster",
+            source: "esri-labels",
+            paint: { "raster-opacity": 0.85 },
+          },
+        ],
+      };
+    }
+    return "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+  }, [basemap]);
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden dark text-foreground">
@@ -521,7 +560,7 @@ export default function Home() {
       <div className="flex-1 relative">
         <Map
           initialViewState={{ longitude: -115.5, latitude: 51.1, zoom: 10 }}
-          mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+          mapStyle={mapStyleConfig}
           // @ts-expect-error - maplibregl prop accepted at runtime
           maplibregl={maplibregl as any}
           onClick={handleMapClick}
@@ -632,6 +671,24 @@ export default function Home() {
             Simulated plausible movements · not observed animal locations
           </div>
         )}
+
+        {/* Basemap toggle */}
+        <div className="absolute top-4 right-4 flex bg-background/85 backdrop-blur-md border border-border rounded-sm overflow-hidden shadow-lg">
+          {(["dark", "satellite"] as const).map((b) => (
+            <button
+              key={b}
+              type="button"
+              onClick={() => setBasemap(b)}
+              className={`px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest transition-colors ${
+                basemap === b
+                  ? "bg-primary/20 text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {b}
+            </button>
+          ))}
+        </div>
 
         {/* Placement hint */}
         {mode === "sim" && placing && (
