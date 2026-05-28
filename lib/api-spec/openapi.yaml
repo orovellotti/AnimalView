@@ -16,6 +16,8 @@ tags:
     description: Animal movement tracks
   - name: imagery
     description: Street-level imagery matching
+  - name: simulation
+    description: Synthetic plausible animal movement (TaxonPath)
 paths:
   /healthz:
     get:
@@ -155,6 +157,42 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/ImageryMatch"
+  /sim-species:
+    get:
+      operationId: listSimSpecies
+      tags: [simulation]
+      summary: List species profiles available for synthetic simulation
+      responses:
+        "200":
+          description: Sim species list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [species]
+                properties:
+                  species:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SimSpecies"
+  /simulate-track:
+    post:
+      operationId: simulateTrack
+      tags: [simulation]
+      summary: Generate a synthetic plausible animal movement track
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimulateTrackRequest"
+      responses:
+        "200":
+          description: Synthetic track
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulateTrackResponse"
   /providers:
     get:
       operationId: getProviders
@@ -261,6 +299,107 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TrackPoint"
+    SimSpecies:
+      type: object
+      required: [id, commonName, scientificName, stepMeters, maxDailyKm, explorationLevel, barrierSensitivity, preferredHabitats, avoidedHabitats, summary]
+      properties:
+        id:
+          type: string
+        commonName:
+          type: string
+        scientificName:
+          type: string
+        summary:
+          type: string
+        stepMeters:
+          type: number
+        maxDailyKm:
+          type: number
+        explorationLevel:
+          type: number
+          description: 0 (homebody) to 1 (disperser)
+        barrierSensitivity:
+          type: number
+          description: 0 (tolerant) to 1 (avoids roads/urban)
+        preferredHabitats:
+          type: array
+          items:
+            type: string
+        avoidedHabitats:
+          type: array
+          items:
+            type: string
+    SimulateTrackRequest:
+      type: object
+      required: [speciesId, startLat, startLon]
+      properties:
+        speciesId:
+          type: string
+        startLat:
+          type: number
+        startLon:
+          type: number
+        durationHours:
+          type: number
+          description: Simulated duration in hours (default 72)
+        seed:
+          type: number
+          description: Random seed for reproducibility
+        individuals:
+          type: integer
+          description: Number of individuals (default 1, max 5)
+    SimTrackPoint:
+      type: object
+      required: [lat, lon, timestamp, habitatScore, barrierRisk]
+      properties:
+        lat:
+          type: number
+        lon:
+          type: number
+        timestamp:
+          type: string
+        habitatScore:
+          type: number
+        barrierRisk:
+          type: number
+    SimulatedIndividual:
+      type: object
+      required: [individualId, points]
+      properties:
+        individualId:
+          type: string
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/SimTrackPoint"
+    SimulateTrackResponse:
+      type: object
+      required: [speciesId, mode, tracks, barriers, disclaimer]
+      properties:
+        speciesId:
+          type: string
+        mode:
+          type: string
+          description: Always "synthetic"
+        disclaimer:
+          type: string
+        tracks:
+          type: array
+          items:
+            $ref: "#/components/schemas/SimulatedIndividual"
+        barriers:
+          type: array
+          description: Sample of OSM barriers used in simulation (for display)
+          items:
+            type: object
+            required: [kind, lat, lon]
+            properties:
+              kind:
+                type: string
+              lat:
+                type: number
+              lon:
+                type: number
     ImageryMatch:
       type: object
       required: [trackPointIndex, provider, distanceM, confidence]
