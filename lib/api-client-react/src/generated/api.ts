@@ -30,6 +30,9 @@ import type {
   ListStudiesParams,
   MatchImagery200,
   MatchImageryRequest,
+  SimSpeciesList,
+  SimulateTrackInput,
+  SimulateTrackResult,
   Track
 } from './api.schemas';
 
@@ -598,4 +601,152 @@ export function useGetProviders<TData = Awaited<ReturnType<typeof getProviders>>
 
 
 
+
+export const getListSimSpeciesUrl = () => {
+
+
+
+
+  return `/api/sim-species`
+}
+
+/**
+ * @summary List built-in simulator species profiles
+ */
+export const listSimSpecies = async ( options?: RequestInit): Promise<SimSpeciesList> => {
+
+  return customFetch<SimSpeciesList>(getListSimSpeciesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSimSpeciesQueryKey = () => {
+    return [
+    `/api/sim-species`
+    ] as const;
+    }
+
+
+export const getListSimSpeciesQueryOptions = <TData = Awaited<ReturnType<typeof listSimSpecies>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSimSpecies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSimSpeciesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSimSpecies>>> = ({ signal }) => listSimSpecies({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSimSpecies>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSimSpeciesQueryResult = NonNullable<Awaited<ReturnType<typeof listSimSpecies>>>
+export type ListSimSpeciesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List built-in simulator species profiles
+ */
+
+export function useListSimSpecies<TData = Awaited<ReturnType<typeof listSimSpecies>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSimSpecies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSimSpeciesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSimulateTrackUrl = () => {
+
+
+
+
+  return `/api/simulate-track`
+}
+
+/**
+ * @summary Generate a synthetic plausible animal track
+ */
+export const simulateTrack = async (simulateTrackInput: SimulateTrackInput, options?: RequestInit): Promise<SimulateTrackResult> => {
+
+  return customFetch<SimulateTrackResult>(getSimulateTrackUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      simulateTrackInput,)
+  }
+);}
+
+
+
+
+export const getSimulateTrackMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof simulateTrack>>, TError,{data: BodyType<SimulateTrackInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof simulateTrack>>, TError,{data: BodyType<SimulateTrackInput>}, TContext> => {
+
+const mutationKey = ['simulateTrack'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof simulateTrack>>, {data: BodyType<SimulateTrackInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  simulateTrack(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SimulateTrackMutationResult = NonNullable<Awaited<ReturnType<typeof simulateTrack>>>
+    export type SimulateTrackMutationBody = BodyType<SimulateTrackInput>
+    export type SimulateTrackMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate a synthetic plausible animal track
+ */
+export const useSimulateTrack = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof simulateTrack>>, TError,{data: BodyType<SimulateTrackInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof simulateTrack>>,
+        TError,
+        {data: BodyType<SimulateTrackInput>},
+        TContext
+      > => {
+      return useMutation(getSimulateTrackMutationOptions(options));
+    }
 

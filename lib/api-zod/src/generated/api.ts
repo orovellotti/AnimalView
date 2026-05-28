@@ -127,3 +127,65 @@ export const GetProvidersResponse = zod.object({
 })
 
 
+/**
+ * @summary List built-in simulator species profiles
+ */
+export const ListSimSpeciesResponse = zod.object({
+  "species": zod.array(zod.object({
+  "id": zod.string(),
+  "commonName": zod.string(),
+  "scientificName": zod.string(),
+  "summary": zod.string(),
+  "stepMeters": zod.number(),
+  "maxDailyKm": zod.number(),
+  "explorationLevel": zod.number(),
+  "barrierSensitivity": zod.number()
+}))
+})
+
+
+/**
+ * @summary Generate a synthetic plausible animal track
+ */
+
+export const simulateTrackBodyStartLatMin = -85;
+export const simulateTrackBodyStartLatMax = 85;
+
+export const simulateTrackBodyStartLonMin = -180;
+export const simulateTrackBodyStartLonMax = 180;
+
+export const simulateTrackBodyDurationHoursMax = 720;
+
+export const simulateTrackBodyExplorationOverrideMin = 0;
+export const simulateTrackBodyExplorationOverrideMax = 1;
+
+
+
+export const SimulateTrackBody = zod.object({
+  "speciesId": zod.string().min(1),
+  "startLat": zod.number().min(simulateTrackBodyStartLatMin).max(simulateTrackBodyStartLatMax),
+  "startLon": zod.number().min(simulateTrackBodyStartLonMin).max(simulateTrackBodyStartLonMax),
+  "durationHours": zod.number().min(1).max(simulateTrackBodyDurationHoursMax).describe('Simulated duration in hours (1 to 720)'),
+  "explorationOverride": zod.number().min(simulateTrackBodyExplorationOverrideMin).max(simulateTrackBodyExplorationOverrideMax).optional(),
+  "seed": zod.number().optional()
+})
+
+export const SimulateTrackResponse = zod.object({
+  "speciesId": zod.string(),
+  "individualId": zod.string(),
+  "points": zod.array(zod.object({
+  "lat": zod.number(),
+  "lon": zod.number(),
+  "timestamp": zod.string(),
+  "habitatScore": zod.number(),
+  "barrierRisk": zod.number()
+})),
+  "barriers": zod.array(zod.object({
+  "kind": zod.string().describe('highway | water | urban'),
+  "lat": zod.number(),
+  "lon": zod.number()
+})),
+  "warnings": zod.array(zod.string())
+})
+
+

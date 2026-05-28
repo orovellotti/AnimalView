@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import Map, { Source, Layer, Marker } from "react-map-gl/maplibre";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+// @ts-expect-error - @turf/turf exports map mismatch
 import * as turf from "@turf/turf";
 
 import {
@@ -13,7 +14,10 @@ import {
   useGetTrack,
   getGetTrackQueryKey,
   useMatchImagery,
-  useGetProviders
+  useGetProviders,
+  useListSimSpecies,
+  getListSimSpeciesQueryKey,
+  useSimulateTrack,
 } from "@workspace/api-client-react";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,9 +25,30 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
-import { Play, Pause, FastForward, Rewind, Info } from "lucide-react";
+import { Play, Pause, Info, Crosshair, Sparkles } from "lucide-react";
+
+type Mode = "real" | "sim";
+
+interface SimPoint {
+  lat: number;
+  lon: number;
+  timestamp: string;
+  habitatScore: number;
+  barrierRisk: number;
+}
+
+interface SimResult {
+  speciesId: string;
+  individualId: string;
+  points: SimPoint[];
+  barriers: { kind: string; lat: number; lon: number }[];
+  warnings: string[];
+}
 
 export default function Home() {
+  const [mode, setMode] = useState<Mode>("real");
+
+  // --- Real track state ---
   const [speciesId, setSpeciesId] = useState<string>("");
   const [studyId, setStudyId] = useState<string>("");
   const [individualId, setIndividualId] = useState<string>("");
@@ -51,12 +76,23 @@ export default function Home() {
 
   const trackReq = useGetTrack(
     { studyId, individualId },
-    { query: { enabled: isTracking, queryKey: getGetTrackQueryKey({ studyId, individualId }) } }
+    { query: { enabled: isTracking && mode === "real", queryKey: getGetTrackQueryKey({ studyId, individualId }) } }
   );
 
   const matchImageryMutation = useMatchImagery();
   const [imageryMatches, setImageryMatches] = useState<any[]>([]);
   const [activeMatch, setActiveMatch] = useState<any | null>(null);
+
+  // --- Simulation state ---
+  const simSpeciesReq = useListSimSpecies({
+    query: { enabled: mode === "sim", queryKey: getListSimSpeciesQueryKey() },
+  });
+  const [simSpeciesId, setSimSpeciesId] = useState<string>("red-fox");
+  const [simDurationHours, setSimDurationHours] = useState<number>(48);
+  const [simStart, setSimStart] = useState<{ lat: number; lon: number } | null>(null);
+  const [placing, setPlacing] = useState<boolean>(false);
+  const [simResult, setSimResult] = useState<SimResult | null>(null);
+  const simulateMutation = useSimulateTrack();
 
   const handleLoadTrack = () => {
     setIsTracking(true);
@@ -64,10 +100,30 @@ export default function Home() {
     setActiveMatch(null);
   };
 
+  const handleSimulate = async () => {
+    if (!simStart) return;
+    try {
+      const res = await simulateMutation.mutateAsync({
+        data: {
+          speciesId: simSpeciesId,
+          startLat: simStart.lat,
+          startLon: simStart.lon,
+          durationHours: simDurationHours,
+        },
+      });
+      setSimResult(res as SimResult);
+      setCurrentTimeIndex(0);
+      setIsPlaying(false);
+    } catch (e) {
+      console.error("Simulate error:", e);
+    }
+  };
+
   // Auto-select the real wolf (Boutin Alberta study, Wolf 13791) on first load.
   const didAutoSelectRef = useRef(false);
   useEffect(() => {
     if (didAutoSelectRef.current) return;
+    if (mode !== "real") return;
     if (!speciesReq.data?.species) return;
     if (speciesId || studyId || individualId) {
       didAutoSelectRef.current = true;
@@ -78,15 +134,13 @@ export default function Home() {
       setSpeciesId("wolf");
       didAutoSelectRef.current = true;
     }
-  }, [speciesReq.data, speciesId, studyId, individualId]);
+  }, [mode, speciesReq.data, speciesId, studyId, individualId]);
 
   const didAutoStudyRef = useRef(false);
   useEffect(() => {
     if (didAutoStudyRef.current) return;
     if (speciesId !== "wolf") return;
-    const boutin = studiesReq.data?.studies?.find(
-      (s) => s.id === "boutin-alberta-wolf",
-    );
+    const boutin = studiesReq.data?.studies?.find((s) => s.id === "boutin-alberta-wolf");
     if (boutin && !studyId) {
       setStudyId("boutin-alberta-wolf");
       didAutoStudyRef.current = true;
@@ -97,9 +151,7 @@ export default function Home() {
   useEffect(() => {
     if (didAutoIndividualRef.current) return;
     if (studyId !== "boutin-alberta-wolf") return;
-    const wolfInd = individualsReq.data?.individuals?.find(
-      (i) => i.id === "13791",
-    );
+    const wolfInd = individualsReq.data?.individuals?.find((i) => i.id === "13791");
     if (wolfInd && !individualId) {
       setIndividualId("13791");
       didAutoIndividualRef.current = true;
@@ -115,8 +167,8 @@ export default function Home() {
         data: {
           points: trackReq.data.points,
           radius,
-          providers: ["google", "mapillary", "wikimedia"]
-        }
+          providers: ["google", "mapillary", "wikimedia"],
+        },
       });
       setImageryMatches(res.matches || []);
     } catch (e) {
@@ -128,33 +180,42 @@ export default function Home() {
   const didAutoImageryRef = useRef(false);
   useEffect(() => {
     if (didAutoImageryRef.current) return;
+    if (mode !== "real") return;
     if (!trackReq.data?.points || trackReq.data.points.length === 0) return;
     if (matchImageryMutation.isPending) return;
     didAutoImageryRef.current = true;
     handleFindImagery();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackReq.data]);
+  }, [trackReq.data, mode]);
+
+  // Unified active points (real OR sim)
+  const activePoints = useMemo<
+    { lat: number; lon: number; timestamp: string; habitatScore?: number; barrierRisk?: number }[] | null
+  >(() => {
+    if (mode === "sim") return simResult?.points ?? null;
+    return trackReq.data?.points ?? null;
+  }, [mode, simResult, trackReq.data]);
 
   const trackGeojson = useMemo(() => {
-    if (!trackReq.data?.points || trackReq.data.points.length === 0) return null;
+    if (!activePoints || activePoints.length === 0) return null;
     return {
       type: "Feature",
       properties: {},
       geometry: {
         type: "LineString",
-        coordinates: trackReq.data.points.map(p => [p.lon, p.lat])
-      }
+        coordinates: activePoints.map((p) => [p.lon, p.lat]),
+      },
     };
-  }, [trackReq.data]);
+  }, [activePoints]);
 
-  const currentPoint = trackReq.data?.points?.[currentTimeIndex];
+  const currentPoint = activePoints?.[currentTimeIndex];
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isPlaying && trackReq.data?.points) {
+    if (isPlaying && activePoints) {
       interval = setInterval(() => {
         setCurrentTimeIndex((prev) => {
-          if (prev >= (trackReq.data?.points.length || 0) - 1) {
+          if (prev >= (activePoints.length || 0) - 1) {
             setIsPlaying(false);
             return prev;
           }
@@ -163,16 +224,14 @@ export default function Home() {
       }, 1000 / speed);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, speed, trackReq.data]);
+  }, [isPlaying, speed, activePoints]);
 
   useEffect(() => {
+    if (mode !== "real") return;
     if (!currentPoint || imageryMatches.length === 0) return;
-    
-    // Find closest match to current point
     const pt = turf.point([currentPoint.lon, currentPoint.lat]);
     let closest = null;
     let minDistance = Infinity;
-
     for (const match of imageryMatches) {
       if (match.imageLon && match.imageLat) {
         const matchPt = turf.point([match.imageLon, match.imageLat]);
@@ -184,7 +243,24 @@ export default function Home() {
       }
     }
     setActiveMatch(closest);
-  }, [currentPoint, imageryMatches]);
+  }, [mode, currentPoint, imageryMatches]);
+
+  // Reset playback when switching modes
+  useEffect(() => {
+    setCurrentTimeIndex(0);
+    setIsPlaying(false);
+    setActiveMatch(null);
+    setPlacing(false);
+  }, [mode]);
+
+  const handleMapClick = (e: any) => {
+    if (mode !== "sim" || !placing) return;
+    const { lng, lat } = e.lngLat;
+    setSimStart({ lat, lon: lng });
+    setPlacing(false);
+  };
+
+  const trackLineColor = mode === "sim" ? "hsl(180, 90%, 55%)" : "hsl(40, 90%, 55%)";
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden dark text-foreground">
@@ -192,8 +268,27 @@ export default function Home() {
       <div className="w-80 border-r border-border bg-sidebar/90 backdrop-blur-md flex flex-col z-10 shadow-xl">
         <div className="p-6 border-b border-border">
           <h1 className="text-xl tracking-widest font-mono font-bold text-primary mb-1 uppercase">AnimalView</h1>
-          <p className="text-xs text-muted-foreground uppercase tracking-widest">Reconstructing paths</p>
-          {providersReq.data?.demoMode && (
+          <p className="text-xs text-muted-foreground uppercase tracking-widest">
+            {mode === "sim" ? "Synthetic paths" : "Reconstructing paths"}
+          </p>
+          {/* Mode toggle */}
+          <div className="mt-4 grid grid-cols-2 gap-1 p-1 bg-background/40 border border-border rounded-sm">
+            {(["real", "sim"] as Mode[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className={`text-[10px] font-mono uppercase tracking-widest py-2 rounded-sm transition-all ${
+                  mode === m
+                    ? "bg-primary/20 text-primary border border-primary/40"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {m === "real" ? "Real Tracks" : "Simulation"}
+              </button>
+            ))}
+          </div>
+          {providersReq.data?.demoMode && mode === "real" && (
             <div className="mt-4 px-3 py-2 bg-primary/10 border border-primary/20 rounded-sm">
               <p className="text-[10px] text-primary uppercase font-mono tracking-wider">Demo Mode Active</p>
               <p className="text-[10px] text-muted-foreground mt-1">Using simulated bear track around Banff</p>
@@ -202,133 +297,235 @@ export default function Home() {
         </div>
 
         <div className="p-6 flex-1 overflow-y-auto space-y-6">
-          <div className="space-y-2">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Species</Label>
-            <Select value={speciesId} onValueChange={setSpeciesId}>
-              <SelectTrigger className="bg-background/50 border-border font-mono text-sm">
-                <SelectValue placeholder="Select species..." />
-              </SelectTrigger>
-              <SelectContent className="dark">
-                {speciesReq.data?.species?.map((s) => (
-                  <SelectItem key={s.id} value={s.id} className="font-mono text-sm">
-                    {s.commonName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {mode === "real" ? (
+            <>
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Species</Label>
+                <Select value={speciesId} onValueChange={setSpeciesId}>
+                  <SelectTrigger className="bg-background/50 border-border font-mono text-sm">
+                    <SelectValue placeholder="Select species..." />
+                  </SelectTrigger>
+                  <SelectContent className="dark">
+                    {speciesReq.data?.species?.map((s) => (
+                      <SelectItem key={s.id} value={s.id} className="font-mono text-sm">
+                        {s.commonName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="space-y-2">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Study</Label>
-            <Select value={studyId} onValueChange={setStudyId} disabled={!speciesId}>
-              <SelectTrigger className="bg-background/50 border-border font-mono text-sm">
-                <SelectValue placeholder="Select study..." />
-              </SelectTrigger>
-              <SelectContent className="dark">
-                {studiesReq.data?.studies?.map((s) => (
-                  <SelectItem key={s.id} value={s.id} className="font-mono text-sm">
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Study</Label>
+                <Select value={studyId} onValueChange={setStudyId} disabled={!speciesId}>
+                  <SelectTrigger className="bg-background/50 border-border font-mono text-sm">
+                    <SelectValue placeholder="Select study..." />
+                  </SelectTrigger>
+                  <SelectContent className="dark">
+                    {studiesReq.data?.studies?.map((s) => (
+                      <SelectItem key={s.id} value={s.id} className="font-mono text-sm">
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="space-y-2">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Individual</Label>
-            <Select value={individualId} onValueChange={setIndividualId} disabled={!studyId}>
-              <SelectTrigger className="bg-background/50 border-border font-mono text-sm">
-                <SelectValue placeholder="Select individual..." />
-              </SelectTrigger>
-              <SelectContent className="dark">
-                {individualsReq.data?.individuals?.map((s) => (
-                  <SelectItem key={s.id} value={s.id} className="font-mono text-sm">
-                    {s.name} {s.nickname ? `"${s.nickname}"` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Individual</Label>
+                <Select value={individualId} onValueChange={setIndividualId} disabled={!studyId}>
+                  <SelectTrigger className="bg-background/50 border-border font-mono text-sm">
+                    <SelectValue placeholder="Select individual..." />
+                  </SelectTrigger>
+                  <SelectContent className="dark">
+                    {individualsReq.data?.individuals?.map((s) => (
+                      <SelectItem key={s.id} value={s.id} className="font-mono text-sm">
+                        {s.name} {s.nickname ? `"${s.nickname}"` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="space-y-4 pt-4 border-t border-border">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground flex justify-between">
-              <span>Search Radius</span>
-              <span className="text-primary">{radius}m</span>
-            </Label>
-            <Slider
-              value={[radius]}
-              min={500}
-              max={10000}
-              step={500}
-              onValueChange={([val]) => setRadius(val)}
-              className="py-2"
-            />
-          </div>
-
-          <div className="pt-4 border-t border-border">
-            <button
-              type="button"
-              onClick={() => setShowHumanPressure((v) => !v)}
-              className={`w-full font-mono uppercase tracking-widest text-xs h-10 px-3 rounded border transition-all flex items-center justify-between ${
-                showHumanPressure
-                  ? "bg-primary/15 text-primary border-primary/40 shadow-[0_0_12px_rgba(234,179,8,0.25)]"
-                  : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:border-foreground/40"
-              }`}
-            >
-              <span>Human Pressure</span>
-              <span
-                className={`inline-block w-8 h-4 rounded-full relative transition-colors ${
-                  showHumanPressure ? "bg-primary/60" : "bg-muted"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-all ${
-                    showHumanPressure ? "left-4" : "left-0.5"
-                  }`}
+              <div className="space-y-4 pt-4 border-t border-border">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground flex justify-between">
+                  <span>Search Radius</span>
+                  <span className="text-primary">{radius}m</span>
+                </Label>
+                <Slider
+                  value={[radius]}
+                  min={500}
+                  max={10000}
+                  step={500}
+                  onValueChange={([val]) => setRadius(val)}
+                  className="py-2"
                 />
-              </span>
-            </button>
-            <p className="text-[10px] text-muted-foreground/60 leading-relaxed font-mono mt-2">
-              Overlay roads, buildings &amp; industrial sites from OpenStreetMap to reveal how human infrastructure crosses the animal&apos;s range.
-            </p>
-          </div>
+              </div>
 
-          <div className="pt-6 space-y-3">
-            <Button 
-              onClick={handleLoadTrack} 
-              disabled={!individualId}
-              className="w-full font-mono uppercase tracking-widest text-xs h-10"
-              variant="outline"
-            >
-              Load Track
-            </Button>
-            <Button 
-              onClick={handleFindImagery} 
-              disabled={!trackReq.data?.points || matchImageryMutation.isPending}
-              className="w-full font-mono uppercase tracking-widest text-xs h-10 bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-primary-foreground transition-all"
-            >
-              {matchImageryMutation.isPending ? "Searching..." : "Find Context Imagery"}
-            </Button>
-          </div>
+              <div className="pt-4 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setShowHumanPressure((v) => !v)}
+                  className={`w-full font-mono uppercase tracking-widest text-xs h-10 px-3 rounded border transition-all flex items-center justify-between ${
+                    showHumanPressure
+                      ? "bg-primary/15 text-primary border-primary/40 shadow-[0_0_12px_rgba(234,179,8,0.25)]"
+                      : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:border-foreground/40"
+                  }`}
+                >
+                  <span>Human Pressure</span>
+                  <span
+                    className={`inline-block w-8 h-4 rounded-full relative transition-colors ${
+                      showHumanPressure ? "bg-primary/60" : "bg-muted"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-all ${
+                        showHumanPressure ? "left-4" : "left-0.5"
+                      }`}
+                    />
+                  </span>
+                </button>
+                <p className="text-[10px] text-muted-foreground/60 leading-relaxed font-mono mt-2">
+                  Overlay roads, buildings &amp; industrial sites from OpenStreetMap.
+                </p>
+              </div>
+
+              <div className="pt-6 space-y-3">
+                <Button
+                  onClick={handleLoadTrack}
+                  disabled={!individualId}
+                  className="w-full font-mono uppercase tracking-widest text-xs h-10"
+                  variant="outline"
+                >
+                  Load Track
+                </Button>
+                <Button
+                  onClick={handleFindImagery}
+                  disabled={!trackReq.data?.points || matchImageryMutation.isPending}
+                  className="w-full font-mono uppercase tracking-widest text-xs h-10 bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-primary-foreground transition-all"
+                >
+                  {matchImageryMutation.isPending ? "Searching..." : "Find Context Imagery"}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Species</Label>
+                <Select value={simSpeciesId} onValueChange={setSimSpeciesId}>
+                  <SelectTrigger className="bg-background/50 border-border font-mono text-sm">
+                    <SelectValue placeholder="Select species..." />
+                  </SelectTrigger>
+                  <SelectContent className="dark">
+                    {simSpeciesReq.data?.species?.map((s) => (
+                      <SelectItem key={s.id} value={s.id} className="font-mono text-sm">
+                        {s.commonName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {simSpeciesReq.data?.species?.find((s) => s.id === simSpeciesId) && (
+                  <p className="text-[10px] text-muted-foreground/80 leading-relaxed font-mono pt-1">
+                    {simSpeciesReq.data.species.find((s) => s.id === simSpeciesId)!.summary}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-4 pt-4 border-t border-border">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground flex justify-between">
+                  <span>Duration</span>
+                  <span className="text-primary">{simDurationHours}h</span>
+                </Label>
+                <Slider
+                  value={[simDurationHours]}
+                  min={6}
+                  max={168}
+                  step={6}
+                  onValueChange={([val]) => setSimDurationHours(val)}
+                  className="py-2"
+                />
+              </div>
+
+              <div className="pt-4 border-t border-border space-y-3">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Start Location</Label>
+                <button
+                  type="button"
+                  onClick={() => setPlacing((p) => !p)}
+                  className={`w-full font-mono uppercase tracking-widest text-xs h-10 px-3 rounded border transition-all flex items-center justify-between ${
+                    placing
+                      ? "bg-primary/20 text-primary border-primary/50 shadow-[0_0_12px_rgba(234,179,8,0.3)]"
+                      : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:border-foreground/40"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Crosshair className="w-3 h-3" />
+                    {placing ? "Click on map…" : simStart ? "Re-place individual" : "Place individual"}
+                  </span>
+                </button>
+                {simStart && (
+                  <p className="text-[10px] text-muted-foreground font-mono">
+                    {simStart.lat.toFixed(4)}, {simStart.lon.toFixed(4)}
+                  </p>
+                )}
+              </div>
+
+              <div className="pt-6 space-y-3">
+                <Button
+                  onClick={handleSimulate}
+                  disabled={!simStart || simulateMutation.isPending}
+                  className="w-full font-mono uppercase tracking-widest text-xs h-10 bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-primary-foreground transition-all"
+                >
+                  <Sparkles className="w-3 h-3 mr-2" />
+                  {simulateMutation.isPending ? "Simulating…" : "Generate Track"}
+                </Button>
+                {simResult && (
+                  <div className="text-[10px] font-mono text-muted-foreground space-y-1 pt-2 border-t border-border">
+                    <div className="flex justify-between">
+                      <span>Points</span>
+                      <span className="text-primary">{simResult.points.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>OSM barriers</span>
+                      <span className="text-primary">{simResult.barriers.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>ID</span>
+                      <span>{simResult.individualId}</span>
+                    </div>
+                    {simResult.warnings.map((w, i) => (
+                      <p key={i} className="text-amber-400/70 pt-1">⚠ {w}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="p-6 border-t border-border text-[10px] text-muted-foreground/60 leading-relaxed font-mono">
-          <p>AnimalView reconstructs possible visual encounters along animal movement tracks. This is not proof of what the animal saw — it is a spatial approximation using public street-level imagery near recorded GPS points.</p>
+          {mode === "sim" ? (
+            <p>
+              These are <span className="text-amber-400/90">simulated plausible movements</span>, not observed animal locations. Generated via biased random walk over a habitat gradient and live OpenStreetMap barriers.
+            </p>
+          ) : (
+            <p>
+              AnimalView reconstructs possible visual encounters along animal movement tracks. This is not proof of what the animal saw — it is a spatial approximation using public street-level imagery near recorded GPS points.
+            </p>
+          )}
         </div>
       </div>
 
       {/* Main Map */}
       <div className="flex-1 relative">
         <Map
-          initialViewState={{
-            longitude: -115.5,
-            latitude: 51.1,
-            zoom: 10
-          }}
+          initialViewState={{ longitude: -115.5, latitude: 51.1, zoom: 10 }}
           mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+          // @ts-expect-error - maplibregl prop accepted at runtime
           maplibregl={maplibregl as any}
+          onClick={handleMapClick}
+          cursor={mode === "sim" && placing ? "crosshair" : undefined}
         >
-          {showHumanPressure && (
+          {showHumanPressure && mode === "real" && (
             <Source
               id="human-pressure"
               type="raster"
@@ -359,31 +556,87 @@ export default function Home() {
                 id="track-line"
                 type="line"
                 paint={{
-                  "line-color": "hsl(40, 90%, 55%)",
+                  "line-color": trackLineColor,
                   "line-width": 2,
-                  "line-opacity": 0.4,
-                  "line-blur": 1
+                  "line-opacity": mode === "sim" ? 0.85 : 0.4,
+                  "line-blur": mode === "sim" ? 0 : 1,
+                  "line-dasharray": mode === "sim" ? [2, 1.5] : [1, 0],
                 }}
               />
             </Source>
           )}
 
-          {imageryMatches.map((match, i) => (
-            match.imageLon && match.imageLat && (
-              <Marker key={`match-${i}`} longitude={match.imageLon} latitude={match.imageLat}>
-                <div className={`w-2 h-2 rounded-full ${match.provider === 'google' ? 'bg-blue-500' : 'bg-green-500'} ${activeMatch?.imageId === match.imageId ? 'ring-4 ring-primary/50 bg-primary shadow-[0_0_15px_rgba(234,179,8,0.8)]' : 'opacity-40'}`} />
+          {/* Simulation barriers */}
+          {mode === "sim" &&
+            simResult?.barriers.slice(0, 250).map((b, i) => (
+              <Marker key={`barrier-${i}`} longitude={b.lon} latitude={b.lat}>
+                <div
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    b.kind === "highway"
+                      ? "bg-red-500/70"
+                      : b.kind === "water"
+                      ? "bg-blue-400/70"
+                      : "bg-amber-500/60"
+                  }`}
+                />
               </Marker>
-            )
-          ))}
+            ))}
+
+          {/* Sim start marker */}
+          {mode === "sim" && simStart && (
+            <Marker longitude={simStart.lon} latitude={simStart.lat}>
+              <div className="w-3 h-3 rounded-full border-2 border-cyan-300 bg-cyan-300/30 shadow-[0_0_10px_rgba(103,232,249,0.8)]" />
+            </Marker>
+          )}
+
+          {/* Imagery matches (real only) */}
+          {mode === "real" &&
+            imageryMatches.map(
+              (match, i) =>
+                match.imageLon &&
+                match.imageLat && (
+                  <Marker key={`match-${i}`} longitude={match.imageLon} latitude={match.imageLat}>
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        match.provider === "google" ? "bg-blue-500" : "bg-green-500"
+                      } ${
+                        activeMatch?.imageId === match.imageId
+                          ? "ring-4 ring-primary/50 bg-primary shadow-[0_0_15px_rgba(234,179,8,0.8)]"
+                          : "opacity-40"
+                      }`}
+                    />
+                  </Marker>
+                ),
+            )}
 
           {currentPoint && (
             <Marker longitude={currentPoint.lon} latitude={currentPoint.lat}>
-              <div className="w-4 h-4 rounded-full bg-primary flex items-center justify-center shadow-[0_0_20px_rgba(234,179,8,1)] animate-pulse">
+              <div
+                className={`w-4 h-4 rounded-full flex items-center justify-center animate-pulse ${
+                  mode === "sim"
+                    ? "bg-cyan-300 shadow-[0_0_20px_rgba(103,232,249,1)]"
+                    : "bg-primary shadow-[0_0_20px_rgba(234,179,8,1)]"
+                }`}
+              >
                 <div className="w-1.5 h-1.5 rounded-full bg-black" />
               </div>
             </Marker>
           )}
         </Map>
+
+        {/* Simulation disclaimer banner */}
+        {mode === "sim" && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-amber-400/10 border border-amber-400/30 backdrop-blur-md rounded-sm text-[10px] font-mono uppercase tracking-widest text-amber-300 pointer-events-none">
+            Simulated plausible movements · not observed animal locations
+          </div>
+        )}
+
+        {/* Placement hint */}
+        {mode === "sim" && placing && (
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 px-4 py-2 bg-primary/15 border border-primary/40 backdrop-blur-md rounded-sm text-[10px] font-mono uppercase tracking-widest text-primary pointer-events-none">
+            Click anywhere on the map to drop the individual
+          </div>
+        )}
 
         {/* Bottom Player */}
         <div className="absolute bottom-0 left-0 right-0 p-6 pointer-events-none flex justify-center">
@@ -395,11 +648,13 @@ export default function Home() {
               <div className="flex flex-col ml-2">
                 <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Speed</span>
                 <div className="flex gap-1 mt-1">
-                  {[1, 5, 20, 100].map(s => (
-                    <button 
-                      key={s} 
+                  {[1, 5, 20, 100].map((s) => (
+                    <button
+                      key={s}
                       onClick={() => setSpeed(s)}
-                      className={`text-[10px] font-mono px-2 py-0.5 rounded ${speed === s ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                      className={`text-[10px] font-mono px-2 py-0.5 rounded ${
+                        speed === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      }`}
                     >
                       {s}x
                     </button>
@@ -410,13 +665,15 @@ export default function Home() {
 
             <div className="flex-1 flex flex-col gap-2">
               <div className="flex justify-between font-mono text-[10px] uppercase text-muted-foreground tracking-widest">
-                <span>{currentPoint ? new Date(currentPoint.timestamp).toLocaleString() : '---'}</span>
-                <span>{currentPoint ? `${currentPoint.lat.toFixed(5)}, ${currentPoint.lon.toFixed(5)}` : '---'}</span>
+                <span>{currentPoint ? new Date(currentPoint.timestamp).toLocaleString() : "---"}</span>
+                <span>{currentPoint ? `${currentPoint.lat.toFixed(5)}, ${currentPoint.lon.toFixed(5)}` : "---"}</span>
               </div>
               <div className="h-1 bg-muted rounded-full overflow-hidden relative">
-                <div 
-                  className="absolute top-0 bottom-0 left-0 bg-primary transition-all duration-200" 
-                  style={{ width: `${trackReq.data?.points?.length ? (currentTimeIndex / trackReq.data.points.length) * 100 : 0}%` }}
+                <div
+                  className="absolute top-0 bottom-0 left-0 bg-primary transition-all duration-200"
+                  style={{
+                    width: `${activePoints?.length ? (currentTimeIndex / activePoints.length) * 100 : 0}%`,
+                  }}
                 />
               </div>
             </div>
@@ -424,23 +681,73 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Right Image Panel */}
+      {/* Right Panel */}
       <div className="w-80 border-l border-border bg-sidebar/95 backdrop-blur-md flex flex-col z-10 relative shadow-[-10px_0_30px_rgba(0,0,0,0.5)] transition-all duration-500">
         <div className="p-6 border-b border-border flex items-center gap-2 text-primary">
           <Info className="w-4 h-4" />
-          <h2 className="text-xs uppercase tracking-widest font-mono font-bold">Candidate Context</h2>
+          <h2 className="text-xs uppercase tracking-widest font-mono font-bold">
+            {mode === "sim" ? "Ecology Readout" : "Candidate Context"}
+          </h2>
         </div>
-        
+
         <div className="flex-1 p-6 overflow-y-auto">
-          {activeMatch ? (
+          {mode === "sim" ? (
+            currentPoint && simResult ? (
+              <div className="space-y-4 font-mono text-[11px] text-muted-foreground/80">
+                <div className="space-y-3">
+                  <div className="flex justify-between border-b border-border/50 pb-2">
+                    <span className="uppercase tracking-widest text-muted-foreground">Habitat score</span>
+                    <span className="text-primary">{(currentPoint.habitatScore ?? 0).toFixed(2)}</span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-green-400/70"
+                      style={{ width: `${Math.round((currentPoint.habitatScore ?? 0) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between border-b border-border/50 pb-2">
+                    <span className="uppercase tracking-widest text-muted-foreground">Barrier risk</span>
+                    <span className="text-red-300">{(currentPoint.barrierRisk ?? 0).toFixed(2)}</span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-red-400/70"
+                      style={{ width: `${Math.round((currentPoint.barrierRisk ?? 0) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="p-4 bg-muted/30 border border-border/50 rounded-sm mt-8">
+                  <p className="text-[10px] font-mono leading-relaxed text-muted-foreground">
+                    Step {currentTimeIndex + 1} of {simResult.points.length}. Habitat is derived from a procedural suitability gradient; barrier risk uses live OpenStreetMap roads, water and built-up areas near the start point.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-50">
+                <div className="w-12 h-12 border border-dashed border-muted-foreground/30 rounded-full flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground max-w-[200px]">
+                  {simStart ? "Generate a track to see ecology" : "Place an individual on the map to begin"}
+                </p>
+              </div>
+            )
+          ) : activeMatch ? (
             <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
               <div className="relative aspect-video rounded-sm overflow-hidden border border-border bg-black">
                 {activeMatch.previewUrl ? (
-                  <img src={activeMatch.previewUrl} alt="Candidate context" className="object-cover w-full h-full opacity-80 mix-blend-screen grayscale-[20%] contrast-125" />
+                  <img
+                    src={activeMatch.previewUrl}
+                    alt="Candidate context"
+                    className="object-cover w-full h-full opacity-80 mix-blend-screen grayscale-[20%] contrast-125"
+                  />
                 ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground font-mono text-xs">No Image Preview</div>
+                  <div className="flex items-center justify-center h-full text-muted-foreground font-mono text-xs">
+                    No Image Preview
+                  </div>
                 )}
-                
                 <div className="absolute inset-0 ring-1 ring-inset ring-white/10 pointer-events-none" />
                 <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 backdrop-blur-sm rounded-sm border border-white/10 text-[9px] font-mono uppercase text-white/80 tracking-widest">
                   {activeMatch.provider}
@@ -450,7 +757,9 @@ export default function Home() {
               <div className="space-y-3 font-mono text-[11px] text-muted-foreground/80">
                 <div className="flex justify-between border-b border-border/50 pb-2">
                   <span className="uppercase tracking-widest text-muted-foreground">Confidence</span>
-                  <span className={activeMatch.confidence === 'high' ? 'text-primary' : ''}>{activeMatch.confidence}</span>
+                  <span className={activeMatch.confidence === "high" ? "text-primary" : ""}>
+                    {activeMatch.confidence}
+                  </span>
                 </div>
                 <div className="flex justify-between border-b border-border/50 pb-2">
                   <span className="uppercase tracking-widest text-muted-foreground">Distance</span>

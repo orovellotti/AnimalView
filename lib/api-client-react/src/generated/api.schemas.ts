@@ -67,6 +67,71 @@ export interface ImageryMatch {
   previewUrl?: string;
 }
 
+export interface SimSpeciesProfile {
+  id: string;
+  commonName: string;
+  scientificName: string;
+  summary: string;
+  stepMeters: number;
+  maxDailyKm: number;
+  explorationLevel: number;
+  barrierSensitivity: number;
+}
+
+export interface SimSpeciesList {
+  species: SimSpeciesProfile[];
+}
+
+export interface SimulateTrackInput {
+  /** @minLength 1 */
+  speciesId: string;
+  /**
+     * @minimum -85
+     * @maximum 85
+     */
+  startLat: number;
+  /**
+     * @minimum -180
+     * @maximum 180
+     */
+  startLon: number;
+  /**
+     * Simulated duration in hours (1 to 720)
+     * @minimum 1
+     * @maximum 720
+     */
+  durationHours: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  explorationOverride?: number;
+  seed?: number;
+}
+
+export interface SimTrackPoint {
+  lat: number;
+  lon: number;
+  timestamp: string;
+  habitatScore: number;
+  barrierRisk: number;
+}
+
+export interface SimBarrier {
+  /** highway | water | urban */
+  kind: string;
+  lat: number;
+  lon: number;
+}
+
+export interface SimulateTrackResult {
+  speciesId: string;
+  individualId: string;
+  points: SimTrackPoint[];
+  barriers: SimBarrier[];
+  warnings: string[];
+}
+
 export type ListSpecies200 = {
   species: Species[];
 };

@@ -17,7 +17,7 @@ tags:
   - name: imagery
     description: Street-level imagery matching
   - name: simulation
-    description: Synthetic plausible animal movement (TaxonPath)
+    description: Synthetic plausible animal tracks (TaxonPath)
 paths:
   /healthz:
     get:
@@ -157,42 +157,6 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/ImageryMatch"
-  /sim-species:
-    get:
-      operationId: listSimSpecies
-      tags: [simulation]
-      summary: List species profiles available for synthetic simulation
-      responses:
-        "200":
-          description: Sim species list
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [species]
-                properties:
-                  species:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/SimSpecies"
-  /simulate-track:
-    post:
-      operationId: simulateTrack
-      tags: [simulation]
-      summary: Generate a synthetic plausible animal movement track
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/SimulateTrackRequest"
-      responses:
-        "200":
-          description: Synthetic track
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SimulateTrackResponse"
   /providers:
     get:
       operationId: getProviders
@@ -215,6 +179,36 @@ paths:
                     type: boolean
                   demoMode:
                     type: boolean
+  /sim-species:
+    get:
+      operationId: listSimSpecies
+      tags: [simulation]
+      summary: List built-in simulator species profiles
+      responses:
+        "200":
+          description: Sim species list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimSpeciesList"
+  /simulate-track:
+    post:
+      operationId: simulateTrack
+      tags: [simulation]
+      summary: Generate a synthetic plausible animal track
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimulateTrackInput"
+      responses:
+        "200":
+          description: Simulated track
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulateTrackResult"
 components:
   schemas:
     HealthStatus:
@@ -299,107 +293,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TrackPoint"
-    SimSpecies:
-      type: object
-      required: [id, commonName, scientificName, stepMeters, maxDailyKm, explorationLevel, barrierSensitivity, preferredHabitats, avoidedHabitats, summary]
-      properties:
-        id:
-          type: string
-        commonName:
-          type: string
-        scientificName:
-          type: string
-        summary:
-          type: string
-        stepMeters:
-          type: number
-        maxDailyKm:
-          type: number
-        explorationLevel:
-          type: number
-          description: 0 (homebody) to 1 (disperser)
-        barrierSensitivity:
-          type: number
-          description: 0 (tolerant) to 1 (avoids roads/urban)
-        preferredHabitats:
-          type: array
-          items:
-            type: string
-        avoidedHabitats:
-          type: array
-          items:
-            type: string
-    SimulateTrackRequest:
-      type: object
-      required: [speciesId, startLat, startLon]
-      properties:
-        speciesId:
-          type: string
-        startLat:
-          type: number
-        startLon:
-          type: number
-        durationHours:
-          type: number
-          description: Simulated duration in hours (default 72)
-        seed:
-          type: number
-          description: Random seed for reproducibility
-        individuals:
-          type: integer
-          description: Number of individuals (default 1, max 5)
-    SimTrackPoint:
-      type: object
-      required: [lat, lon, timestamp, habitatScore, barrierRisk]
-      properties:
-        lat:
-          type: number
-        lon:
-          type: number
-        timestamp:
-          type: string
-        habitatScore:
-          type: number
-        barrierRisk:
-          type: number
-    SimulatedIndividual:
-      type: object
-      required: [individualId, points]
-      properties:
-        individualId:
-          type: string
-        points:
-          type: array
-          items:
-            $ref: "#/components/schemas/SimTrackPoint"
-    SimulateTrackResponse:
-      type: object
-      required: [speciesId, mode, tracks, barriers, disclaimer]
-      properties:
-        speciesId:
-          type: string
-        mode:
-          type: string
-          description: Always "synthetic"
-        disclaimer:
-          type: string
-        tracks:
-          type: array
-          items:
-            $ref: "#/components/schemas/SimulatedIndividual"
-        barriers:
-          type: array
-          description: Sample of OSM barriers used in simulation (for display)
-          items:
-            type: object
-            required: [kind, lat, lon]
-            properties:
-              kind:
-                type: string
-              lat:
-                type: number
-              lon:
-                type: number
     ImageryMatch:
       type: object
       required: [trackPointIndex, provider, distanceM, confidence]
@@ -428,3 +321,102 @@ components:
           description: "high | medium | low"
         previewUrl:
           type: string
+    SimSpeciesProfile:
+      type: object
+      required: [id, commonName, scientificName, summary, stepMeters, maxDailyKm, explorationLevel, barrierSensitivity]
+      properties:
+        id:
+          type: string
+        commonName:
+          type: string
+        scientificName:
+          type: string
+        summary:
+          type: string
+        stepMeters:
+          type: number
+        maxDailyKm:
+          type: number
+        explorationLevel:
+          type: number
+        barrierSensitivity:
+          type: number
+    SimSpeciesList:
+      type: object
+      required: [species]
+      properties:
+        species:
+          type: array
+          items:
+            $ref: "#/components/schemas/SimSpeciesProfile"
+    SimulateTrackInput:
+      type: object
+      required: [speciesId, startLat, startLon, durationHours]
+      properties:
+        speciesId:
+          type: string
+          minLength: 1
+        startLat:
+          type: number
+          minimum: -85
+          maximum: 85
+        startLon:
+          type: number
+          minimum: -180
+          maximum: 180
+        durationHours:
+          type: number
+          minimum: 1
+          maximum: 720
+          description: Simulated duration in hours (1 to 720)
+        explorationOverride:
+          type: number
+          minimum: 0
+          maximum: 1
+        seed:
+          type: number
+    SimTrackPoint:
+      type: object
+      required: [lat, lon, timestamp, habitatScore, barrierRisk]
+      properties:
+        lat:
+          type: number
+        lon:
+          type: number
+        timestamp:
+          type: string
+        habitatScore:
+          type: number
+        barrierRisk:
+          type: number
+    SimBarrier:
+      type: object
+      required: [kind, lat, lon]
+      properties:
+        kind:
+          type: string
+          description: "highway | water | urban"
+        lat:
+          type: number
+        lon:
+          type: number
+    SimulateTrackResult:
+      type: object
+      required: [speciesId, individualId, points, barriers, warnings]
+      properties:
+        speciesId:
+          type: string
+        individualId:
+          type: string
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/SimTrackPoint"
+        barriers:
+          type: array
+          items:
+            $ref: "#/components/schemas/SimBarrier"
+        warnings:
+          type: array
+          items:
+            type: string
