@@ -480,11 +480,16 @@ export default function Home() {
                 <Slider
                   value={[simDurationHours]}
                   min={6}
-                  max={168}
+                  max={720}
                   step={6}
                   onValueChange={([val]) => setSimDurationHours(val)}
                   className="py-2"
                 />
+                <div className="flex justify-between text-[9px] font-mono text-muted-foreground/60 uppercase tracking-wider">
+                  <span>6h</span>
+                  <span>1 week</span>
+                  <span>1 month</span>
+                </div>
               </div>
 
               <div className="pt-4 border-t border-border space-y-3">
