@@ -91,9 +91,10 @@ function barrierRiskAt(
   if (barriers.length === 0) return 0;
   const { dist, kind } = nearestBarrierDist(lat, lon, barriers);
   if (!Number.isFinite(dist) || !kind) return 0;
-  const scale = kind === "highway" ? 250 : kind === "water" ? 120 : 180;
+  // wider influence radius — humans (roads & urban) repel animals from far away
+  const scale = kind === "highway" ? 500 : kind === "water" ? 120 : 450;
   const proximity = Math.exp(-dist / scale);
-  return Math.min(1, proximity * sensitivity);
+  return Math.min(1, proximity * sensitivity * 1.4);
 }
 
 export async function simulateTrack(
@@ -178,7 +179,7 @@ export async function simulateTrack(
         barriers,
         species.barrierSensitivity,
       );
-      const score = hab - risk * 1.2 + (rand() - 0.5) * explore * 0.4;
+      const score = hab - risk * 2.2 + (rand() - 0.5) * explore * 0.4;
       candidates.push({ ...next, score, hab, risk, bearing });
     }
     candidates.sort((a, b) => b.score - a.score);
