@@ -1,0 +1,201 @@
+Oui. Le concept devient beaucoup plus propre :
+
+**Taxon Simulator / Synthetic Animal Tracks**
+
+Objectif : générer des trajectoires **plausibles mais fictives**, sans exposer de vraies données Movebank.
+
+## Principe
+
+L’utilisateur :
+
+1. choisit une espèce ou un taxon ;
+2. place un individu virtuel sur la carte ;
+3. choisit une période ou une durée ;
+4. le système génère des déplacements potentiels selon :
+
+   * habitats favorables ;
+   * occupation du sol ;
+   * distance de dispersion connue ;
+   * routes, clôtures, zones urbaines, rivières, falaises ;
+   * corridors écologiques ;
+   * fragmentation du paysage ;
+   * saisonnalité éventuelle.
+
+## Données utilisées
+
+Sources possibles :
+
+```text
+- Images satellite Sentinel-2
+- Occupation du sol : Copernicus Land Cover, Corine Land Cover, OSO / Theia
+- OpenStreetMap : routes, bâtiments, voies ferrées, clôtures
+- Hydrographie : rivières, plans d’eau
+- Relief : pente, altitude
+- Données taxon : taille du domaine vital, vitesse moyenne, distance de dispersion, habitat préféré
+```
+
+## Modèle écologique
+
+Chaque pixel ou cellule de la carte reçoit un score :
+
+```text
+favorabilité = habitat + couverture végétale + proximité eau + continuité écologique
+               - routes - urbanisation - pentes fortes - barrières
+```
+
+Puis on génère un déplacement par **marche biaisée** :
+
+```text
+à chaque pas :
+  regarder les cellules voisines
+  favoriser celles avec meilleur habitat
+  éviter les barrières
+  autoriser parfois l’exploration
+  limiter la distance selon l’espèce
+  produire une nouvelle position
+```
+
+## Exemple
+
+Pour un renard :
+
+```text
+- tolère les zones périurbaines
+- évite les grandes routes
+- suit les lisières, haies, friches, boisements
+- déplacement nocturne plus probable
+- domaine vital : quelques km²
+```
+
+Pour un chevreuil :
+
+```text
+- favorise boisements, prairies, lisières
+- évite zones urbaines denses
+- très sensible aux autoroutes clôturées
+- corridors forestiers importants
+```
+
+Pour une tortue d’Hermann :
+
+```text
+- déplacement lent
+- forte contrainte thermique
+- habitats ouverts méditerranéens
+- routes = risque/barrière majeure
+- dispersion faible
+```
+
+## Interface
+
+```text
+Carte principale
+- clic pour placer l’individu
+- couche satellite
+- couche habitat favorable
+- couche obstacles
+- trajectoires générées
+
+Panneau gauche
+- espèce
+- rayon de dispersion
+- durée simulée
+- nombre d’individus simulés
+- niveau d’exploration
+- saison
+- bouton “générer”
+
+Panneau droit
+- score de connectivité
+- obstacles rencontrés
+- corridors empruntés
+- incertitude
+- export GeoJSON
+```
+
+## Résultat généré
+
+```json
+{
+  "species": "Vulpes vulpes",
+  "start": [43.23, 5.41],
+  "tracks": [
+    {
+      "individual_id": "synthetic_001",
+      "points": [
+        {
+          "lat": 43.2301,
+          "lon": 5.4102,
+          "timestamp": "2026-05-28T22:00:00Z",
+          "habitat_score": 0.82,
+          "barrier_risk": 0.12
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Très bon angle produit
+
+Ce n’est plus :
+
+> “voici où un animal est allé”
+
+mais :
+
+> “voici où un animal de cette espèce pourrait vraisemblablement se déplacer dans ce paysage.”
+
+Donc beaucoup moins de problème de confidentialité.
+
+## Nom possible
+
+* **WildPath Simulator**
+* **TaxonPath**
+* **EcoMovement**
+* **Synthetic Wildlife Tracks**
+* **Habitat Motion**
+* **BioPath AI**
+
+## Prompt Replit court
+
+```text
+Build a web app called TaxonPath.
+
+It lets users select a species, click a starting point on a map, and generate synthetic plausible animal movement tracks based on habitat suitability, satellite imagery, land cover, roads, urban areas, rivers, slope and ecological continuity.
+
+Do not use real animal GPS data.
+
+Use React, MapLibre, Turf.js and a Node/Express backend.
+
+Create demo mode first with hardcoded species:
+- red fox
+- roe deer
+- Hermann’s tortoise
+- wild boar
+- wolf
+
+For each species define:
+- preferred habitats
+- avoided habitats
+- average step distance
+- max daily distance
+- barrier sensitivity
+- exploration level
+
+Generate synthetic tracks using a biased random walk over a grid. Each grid cell has a habitat score and barrier score. At every step, move toward nearby cells with better habitat and fewer barriers.
+
+Show:
+- map
+- synthetic tracks
+- habitat suitability heatmap
+- barriers
+- timeline player
+- confidence and uncertainty labels
+- export as GeoJSON
+
+Add a clear disclaimer:
+“These are simulated plausible movements, not observed animal locations.”
+```
+
+This is actually stronger than the original Movebank idea: safer, more scalable, and easier to use for education, planning, impact studies, and ecological connectivity.
