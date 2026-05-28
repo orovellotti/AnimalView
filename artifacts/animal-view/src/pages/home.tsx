@@ -111,11 +111,13 @@ export default function Home() {
           durationHours: simDurationHours,
         },
       });
+      console.log("[sim] response:", res);
       setSimResult(res as SimResult);
       setCurrentTimeIndex(0);
       setIsPlaying(false);
     } catch (e) {
-      console.error("Simulate error:", e);
+      console.error("[sim] error:", e);
+      alert("Simulation failed: " + (e as Error).message);
     }
   };
 
