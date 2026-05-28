@@ -125,21 +125,6 @@ export default function Home() {
       setSimResult(res as SimResult);
       setCurrentTimeIndex(0);
       setIsPlaying(false);
-      const pts = (res as SimResult).points;
-      if (pts && pts.length > 1 && mapRef.current) {
-        let minLat = pts[0].lat, maxLat = pts[0].lat;
-        let minLon = pts[0].lon, maxLon = pts[0].lon;
-        for (const p of pts) {
-          if (p.lat < minLat) minLat = p.lat;
-          if (p.lat > maxLat) maxLat = p.lat;
-          if (p.lon < minLon) minLon = p.lon;
-          if (p.lon > maxLon) maxLon = p.lon;
-        }
-        mapRef.current.fitBounds(
-          [[minLon, minLat], [maxLon, maxLat]],
-          { padding: 80, duration: 1200, maxZoom: 14 },
-        );
-      }
     } catch (e) {
       console.error("[sim] error:", e);
       alert("Simulation failed: " + (e as Error).message);
@@ -236,6 +221,28 @@ export default function Home() {
   }, [activePoints]);
 
   const currentPoint = activePoints?.[currentTimeIndex];
+
+  // Auto-fit map to show the entire track whenever a new one appears
+  useEffect(() => {
+    if (!activePoints || activePoints.length < 2) return;
+    const map = mapRef.current;
+    if (!map) return;
+    let minLat = activePoints[0].lat, maxLat = activePoints[0].lat;
+    let minLon = activePoints[0].lon, maxLon = activePoints[0].lon;
+    for (const p of activePoints) {
+      if (p.lat < minLat) minLat = p.lat;
+      if (p.lat > maxLat) maxLat = p.lat;
+      if (p.lon < minLon) minLon = p.lon;
+      if (p.lon > maxLon) maxLon = p.lon;
+    }
+    // tiny pad so single-cluster tracks don't get over-zoomed
+    const dLat = Math.max(0.001, (maxLat - minLat) * 0.1);
+    const dLon = Math.max(0.001, (maxLon - minLon) * 0.1);
+    map.fitBounds(
+      [[minLon - dLon, minLat - dLat], [maxLon + dLon, maxLat + dLat]],
+      { padding: 80, duration: 1200, maxZoom: 14 },
+    );
+  }, [activePoints]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
