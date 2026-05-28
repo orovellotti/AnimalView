@@ -222,6 +222,19 @@ export default function Home() {
 
   const currentPoint = activePoints?.[currentTimeIndex];
 
+  // Human-pressure heatmap source — built from live OSM barriers (sim mode)
+  const humanPressureGeojson = useMemo(() => {
+    if (!simResult?.barriers || simResult.barriers.length === 0) return null;
+    const features = simResult.barriers
+      .filter((b) => b.kind === "highway" || b.kind === "urban")
+      .map((b) => ({
+        type: "Feature" as const,
+        properties: { weight: b.kind === "highway" ? 1 : 0.65 },
+        geometry: { type: "Point" as const, coordinates: [b.lon, b.lat] },
+      }));
+    return { type: "FeatureCollection" as const, features };
+  }, [simResult]);
+
   // Auto-fit map to show the entire track whenever a new one appears
   useEffect(() => {
     if (!activePoints || activePoints.length < 2) return;
@@ -522,6 +535,34 @@ export default function Home() {
                 </div>
               </div>
 
+              <div className="pt-4 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setShowHumanPressure((v) => !v)}
+                  className={`w-full font-mono uppercase tracking-widest text-xs h-10 px-3 rounded border transition-all flex items-center justify-between ${
+                    showHumanPressure
+                      ? "bg-primary/15 text-primary border-primary/40 shadow-[0_0_12px_rgba(234,179,8,0.25)]"
+                      : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:border-foreground/40"
+                  }`}
+                >
+                  <span>Human Pressure Heatmap</span>
+                  <span
+                    className={`inline-block w-8 h-4 rounded-full relative transition-colors ${
+                      showHumanPressure ? "bg-primary/60" : "bg-muted"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-all ${
+                        showHumanPressure ? "left-4" : "left-0.5"
+                      }`}
+                    />
+                  </span>
+                </button>
+                <p className="text-[10px] text-muted-foreground/60 leading-relaxed font-mono mt-2">
+                  Density of roads &amp; buildings (OSM). Generate a track first to populate the data.
+                </p>
+              </div>
+
               <div className="pt-4 border-t border-border space-y-3">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground">Start Location</Label>
                 <button
@@ -643,8 +684,41 @@ export default function Home() {
             </Source>
           )}
 
+          {/* Human-pressure heatmap (sim mode, OSM-derived) */}
+          {mode === "sim" && showHumanPressure && humanPressureGeojson && (
+            <Source id="human-pressure-heat" type="geojson" data={humanPressureGeojson as any}>
+              <Layer
+                id="human-pressure-heat-layer"
+                type="heatmap"
+                paint={{
+                  "heatmap-weight": ["get", "weight"],
+                  "heatmap-intensity": [
+                    "interpolate", ["linear"], ["zoom"],
+                    8, 0.6,
+                    14, 2.2,
+                  ],
+                  "heatmap-radius": [
+                    "interpolate", ["linear"], ["zoom"],
+                    8, 12,
+                    12, 28,
+                    15, 55,
+                  ],
+                  "heatmap-opacity": 0.75,
+                  "heatmap-color": [
+                    "interpolate", ["linear"], ["heatmap-density"],
+                    0, "rgba(0,0,0,0)",
+                    0.15, "rgba(56,189,248,0.35)",
+                    0.35, "rgba(234,179,8,0.55)",
+                    0.6, "rgba(249,115,22,0.75)",
+                    1, "rgba(220,38,38,0.9)",
+                  ],
+                }}
+              />
+            </Source>
+          )}
+
           {/* Simulation barriers */}
-          {mode === "sim" &&
+          {mode === "sim" && !showHumanPressure &&
             simResult?.barriers.slice(0, 250).map((b, i) => (
               <Marker key={`barrier-${i}`} longitude={b.lon} latitude={b.lat}>
                 <div
