@@ -145,6 +145,31 @@ export const ListSimSpeciesResponse = zod.object({
 
 
 /**
+ * @summary Fetch OSM-derived human pressure points (roads, urban) around a coordinate
+ */
+export const getHumanPressureQueryRadiusDefault = 8000;
+
+export const GetHumanPressureQueryParams = zod.object({
+  "lat": zod.coerce.number(),
+  "lon": zod.coerce.number(),
+  "radius": zod.coerce.number().default(getHumanPressureQueryRadiusDefault)
+})
+
+export const GetHumanPressureResponse = zod.object({
+  "center": zod.object({
+  "lat": zod.number(),
+  "lon": zod.number()
+}),
+  "radius": zod.number(),
+  "features": zod.array(zod.object({
+  "kind": zod.string().describe('highway | water | urban'),
+  "lat": zod.number(),
+  "lon": zod.number()
+}))
+})
+
+
+/**
  * @summary Generate a synthetic plausible animal track
  */
 

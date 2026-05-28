@@ -18,6 +18,8 @@ import {
   useListSimSpecies,
   getListSimSpeciesQueryKey,
   useSimulateTrack,
+  useGetHumanPressure,
+  getGetHumanPressureQueryKey,
 } from "@workspace/api-client-react";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -222,18 +224,59 @@ export default function Home() {
 
   const currentPoint = activePoints?.[currentTimeIndex];
 
-  // Human-pressure heatmap source — built from live OSM barriers (sim mode)
+  // Track centroid + extent (for real-mode OSM barrier fetch radius)
+  const trackCenter = useMemo(() => {
+    if (!activePoints || activePoints.length === 0) return null;
+    let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+    for (const p of activePoints) {
+      if (p.lat < minLat) minLat = p.lat;
+      if (p.lat > maxLat) maxLat = p.lat;
+      if (p.lon < minLon) minLon = p.lon;
+      if (p.lon > maxLon) maxLon = p.lon;
+    }
+    const lat = (minLat + maxLat) / 2;
+    const lon = (minLon + maxLon) / 2;
+    const dLatM = (maxLat - minLat) * 111320;
+    const dLonM = (maxLon - minLon) * 111320 * Math.cos((lat * Math.PI) / 180);
+    const radius = Math.max(3000, Math.min(20000, Math.max(dLatM, dLonM) / 2 + 2000));
+    return { lat, lon, radius };
+  }, [activePoints]);
+
+  // Real-mode: fetch OSM barriers around the track when toggle is on
+  const realPressureReq = useGetHumanPressure(
+    trackCenter
+      ? { lat: trackCenter.lat, lon: trackCenter.lon, radius: trackCenter.radius }
+      : { lat: 0, lon: 0, radius: 8000 },
+    {
+      query: {
+        enabled: mode === "real" && showHumanPressure && !!trackCenter,
+        staleTime: 5 * 60 * 1000,
+        queryKey: getGetHumanPressureQueryKey(
+          trackCenter
+            ? { lat: trackCenter.lat, lon: trackCenter.lon, radius: trackCenter.radius }
+            : { lat: 0, lon: 0, radius: 8000 },
+        ),
+      },
+    },
+  );
+
+  // Human-pressure heatmap source — barriers from sim result or real-mode fetch
   const humanPressureGeojson = useMemo(() => {
-    if (!simResult?.barriers || simResult.barriers.length === 0) return null;
-    const features = simResult.barriers
+    const barriers =
+      mode === "sim"
+        ? simResult?.barriers
+        : realPressureReq.data?.features;
+    if (!barriers || barriers.length === 0) return null;
+    const features = barriers
       .filter((b) => b.kind === "highway" || b.kind === "urban")
       .map((b) => ({
         type: "Feature" as const,
-        properties: { weight: b.kind === "highway" ? 1 : 0.65 },
+        properties: { weight: b.kind === "highway" ? 1 : 0.6 },
         geometry: { type: "Point" as const, coordinates: [b.lon, b.lat] },
       }));
+    console.log("[heatmap] human-pressure features:", features.length, "mode:", mode);
     return { type: "FeatureCollection" as const, features };
-  }, [simResult]);
+  }, [mode, simResult, realPressureReq.data]);
 
   // Auto-fit map to show the entire track whenever a new one appears
   useEffect(() => {
@@ -643,31 +686,6 @@ export default function Home() {
           onClick={handleMapClick}
           cursor={mode === "sim" && placing ? "crosshair" : undefined}
         >
-          {showHumanPressure && mode === "real" && (
-            <Source
-              id="human-pressure"
-              type="raster"
-              tiles={[
-                "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-                "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-                "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-                "https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-              ]}
-              tileSize={256}
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>'
-            >
-              <Layer
-                id="human-pressure-layer"
-                type="raster"
-                paint={{
-                  "raster-opacity": 0.45,
-                  "raster-contrast": 0.3,
-                  "raster-saturation": -0.6,
-                }}
-              />
-            </Source>
-          )}
-
           {trackGeojson && (
             <Source id="track" type="geojson" data={trackGeojson as any}>
               <Layer
@@ -684,8 +702,8 @@ export default function Home() {
             </Source>
           )}
 
-          {/* Human-pressure heatmap (sim mode, OSM-derived) */}
-          {mode === "sim" && showHumanPressure && humanPressureGeojson && (
+          {/* Human-pressure heatmap (OSM-derived: roads + urban areas) */}
+          {showHumanPressure && humanPressureGeojson && (
             <Source id="human-pressure-heat" type="geojson" data={humanPressureGeojson as any}>
               <Layer
                 id="human-pressure-heat-layer"
@@ -694,23 +712,26 @@ export default function Home() {
                   "heatmap-weight": ["get", "weight"],
                   "heatmap-intensity": [
                     "interpolate", ["linear"], ["zoom"],
-                    8, 0.6,
-                    14, 2.2,
+                    6, 1.5,
+                    10, 3,
+                    14, 5,
                   ],
                   "heatmap-radius": [
                     "interpolate", ["linear"], ["zoom"],
-                    8, 12,
-                    12, 28,
-                    15, 55,
+                    6, 20,
+                    10, 40,
+                    13, 70,
+                    16, 100,
                   ],
-                  "heatmap-opacity": 0.75,
+                  "heatmap-opacity": 0.85,
                   "heatmap-color": [
                     "interpolate", ["linear"], ["heatmap-density"],
                     0, "rgba(0,0,0,0)",
-                    0.15, "rgba(56,189,248,0.35)",
-                    0.35, "rgba(234,179,8,0.55)",
-                    0.6, "rgba(249,115,22,0.75)",
-                    1, "rgba(220,38,38,0.9)",
+                    0.05, "rgba(56,189,248,0.5)",
+                    0.2, "rgba(234,179,8,0.7)",
+                    0.45, "rgba(249,115,22,0.85)",
+                    0.8, "rgba(220,38,38,0.95)",
+                    1, "rgba(127,29,29,1)",
                   ],
                 }}
               />

@@ -13,6 +13,7 @@ interface CacheEntry {
 
 const CACHE = new Map<string, CacheEntry>();
 const TTL_MS = 30 * 60 * 1000;
+const FAILURE_TTL_MS = 45 * 1000;
 const OVERPASS_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
@@ -84,6 +85,7 @@ out center 400;`;
       logger.warn({ err, endpoint }, "overpass query failed, trying next");
     }
   }
-  CACHE.set(key, { at: Date.now(), features: [] });
+  // All endpoints failed — cache empty with a short TTL so we retry soon.
+  CACHE.set(key, { at: Date.now() - (TTL_MS - FAILURE_TTL_MS), features: [] });
   return [];
 }

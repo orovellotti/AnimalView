@@ -124,6 +124,17 @@ export interface SimBarrier {
   lon: number;
 }
 
+export type HumanPressureResultCenter = {
+  lat: number;
+  lon: number;
+};
+
+export interface HumanPressureResult {
+  center: HumanPressureResultCenter;
+  radius: number;
+  features: SimBarrier[];
+}
+
 export interface SimulateTrackResult {
   speciesId: string;
   individualId: string;
@@ -170,5 +181,11 @@ export type GetProviders200 = {
   mapillary: boolean;
   movebank: boolean;
   demoMode: boolean;
+};
+
+export type GetHumanPressureParams = {
+lat: number;
+lon: number;
+radius?: number;
 };
 

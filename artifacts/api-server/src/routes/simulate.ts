@@ -3,9 +3,11 @@ import {
   SimulateTrackBody,
   SimulateTrackResponse,
   ListSimSpeciesResponse,
+  GetHumanPressureResponse,
 } from "@workspace/api-zod";
 import { SIM_SPECIES } from "../lib/simSpecies";
 import { simulateTrack } from "../lib/simulator";
+import { fetchBarriersNear } from "../lib/osmBarriers";
 
 const router: IRouter = Router();
 
@@ -45,6 +47,29 @@ router.post("/simulate-track", async (req, res) => {
     req.log.error({ err }, "simulate-track failed");
     const msg = err instanceof Error ? err.message : "simulation failed";
     res.status(500).json({ error: msg });
+  }
+});
+
+router.get("/human-pressure", async (req, res) => {
+  const lat = Number(req.query.lat);
+  const lon = Number(req.query.lon);
+  const radius = Number(req.query.radius ?? 8000);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    res.status(400).json({ error: "lat and lon required" });
+    return;
+  }
+  const r = Math.max(1000, Math.min(30000, Number.isFinite(radius) ? radius : 8000));
+  try {
+    const features = await fetchBarriersNear(lat, lon, r);
+    const data = GetHumanPressureResponse.parse({
+      center: { lat, lon },
+      radius: r,
+      features,
+    });
+    res.json(data);
+  } catch (err) {
+    req.log.error({ err }, "human-pressure failed");
+    res.status(500).json({ error: "pressure fetch failed" });
   }
 });
 

@@ -191,6 +191,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SimSpeciesList"
+  /human-pressure:
+    get:
+      operationId: getHumanPressure
+      tags: [simulation]
+      summary: Fetch OSM-derived human pressure points (roads, urban) around a coordinate
+      parameters:
+        - in: query
+          name: lat
+          required: true
+          schema: { type: number }
+        - in: query
+          name: lon
+          required: true
+          schema: { type: number }
+        - in: query
+          name: radius
+          required: false
+          schema: { type: number, default: 8000 }
+      responses:
+        "200":
+          description: Pressure features
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HumanPressureResult"
   /simulate-track:
     post:
       operationId: simulateTrack
@@ -400,6 +425,22 @@ components:
           type: number
         lon:
           type: number
+    HumanPressureResult:
+      type: object
+      required: [center, radius, features]
+      properties:
+        center:
+          type: object
+          required: [lat, lon]
+          properties:
+            lat: { type: number }
+            lon: { type: number }
+        radius:
+          type: number
+        features:
+          type: array
+          items:
+            $ref: "#/components/schemas/SimBarrier"
     SimulateTrackResult:
       type: object
       required: [speciesId, individualId, points, barriers, warnings]

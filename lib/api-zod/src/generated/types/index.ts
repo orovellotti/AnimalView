@@ -6,9 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './getHumanPressureParams';
 export * from './getProviders200';
 export * from './getTrackParams';
 export * from './healthStatus';
+export * from './humanPressureResult';
+export * from './humanPressureResultCenter';
 export * from './imageryMatch';
 export * from './individual';
 export * from './listIndividuals200';

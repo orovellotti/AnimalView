@@ -20,9 +20,11 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  GetHumanPressureParams,
   GetProviders200,
   GetTrackParams,
   HealthStatus,
+  HumanPressureResult,
   ListIndividuals200,
   ListIndividualsParams,
   ListSpecies200,
@@ -667,6 +669,90 @@ export function useListSimSpecies<TData = Awaited<ReturnType<typeof listSimSpeci
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListSimSpeciesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetHumanPressureUrl = (params: GetHumanPressureParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/human-pressure?${stringifiedParams}` : `/api/human-pressure`
+}
+
+/**
+ * @summary Fetch OSM-derived human pressure points (roads, urban) around a coordinate
+ */
+export const getHumanPressure = async (params: GetHumanPressureParams, options?: RequestInit): Promise<HumanPressureResult> => {
+
+  return customFetch<HumanPressureResult>(getGetHumanPressureUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetHumanPressureQueryKey = (params?: GetHumanPressureParams,) => {
+    return [
+    `/api/human-pressure`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetHumanPressureQueryOptions = <TData = Awaited<ReturnType<typeof getHumanPressure>>, TError = ErrorType<unknown>>(params: GetHumanPressureParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHumanPressure>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetHumanPressureQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getHumanPressure>>> = ({ signal }) => getHumanPressure(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getHumanPressure>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetHumanPressureQueryResult = NonNullable<Awaited<ReturnType<typeof getHumanPressure>>>
+export type GetHumanPressureQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Fetch OSM-derived human pressure points (roads, urban) around a coordinate
+ */
+
+export function useGetHumanPressure<TData = Awaited<ReturnType<typeof getHumanPressure>>, TError = ErrorType<unknown>>(
+ params: GetHumanPressureParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHumanPressure>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetHumanPressureQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
