@@ -26,6 +26,13 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
 import { Play, Pause, Info, Crosshair, Sparkles } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 type Mode = "real" | "sim";
 
@@ -672,8 +679,123 @@ export default function Home() {
 
         {/* Simulation disclaimer banner */}
         {mode === "sim" && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-amber-400/10 border border-amber-400/30 backdrop-blur-md rounded-sm text-[10px] font-mono uppercase tracking-widest text-amber-300 pointer-events-none">
-            Simulated plausible movements · not observed animal locations
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-amber-400/10 border border-amber-400/30 backdrop-blur-md rounded-sm text-[10px] font-mono uppercase tracking-widest text-amber-300">
+            <span className="pointer-events-none">
+              Simulated plausible movements · not observed animal locations
+            </span>
+            <Dialog>
+              <DialogTrigger asChild>
+                <button
+                  type="button"
+                  className="ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-sm border border-amber-400/40 hover:bg-amber-400/20 transition-colors"
+                  aria-label="About this simulation"
+                >
+                  <Info className="w-3 h-3" />
+                  About
+                </button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="font-mono uppercase tracking-widest text-primary">
+                    TaxonPath — Simulation Method
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 text-sm text-muted-foreground leading-relaxed font-mono">
+                  <p>
+                    TaxonPath generates <span className="text-foreground">plausible</span> animal
+                    trajectories — not predictions, not observations. The goal is to illustrate
+                    how a given species <span className="text-foreground">might</span> move
+                    through a landscape given its ecology and the real human barriers around it.
+                  </p>
+
+                  <div>
+                    <h3 className="text-foreground text-xs uppercase tracking-widest mb-2">
+                      1 · Species profiles
+                    </h3>
+                    <p>
+                      Five hand-tuned profiles (red fox, roe deer, Hermann's tortoise, wild boar,
+                      grey wolf). Each profile encodes step length, max daily distance, barrier
+                      sensitivity, and an exploration level — calibrated from published home-range
+                      and dispersal literature.
+                    </p>
+                  </div>
+
+                  <div>
+                    <h3 className="text-foreground text-xs uppercase tracking-widest mb-2">
+                      2 · Habitat suitability
+                    </h3>
+                    <p>
+                      A continuous, deterministic procedural field (smooth sin/cos gradient
+                      seeded on coordinates) acts as a proxy for habitat quality in the absence
+                      of a global land-cover layer. Values range 0–1 and bias the walk toward
+                      high-suitability pixels.
+                    </p>
+                  </div>
+
+                  <div>
+                    <h3 className="text-foreground text-xs uppercase tracking-widest mb-2">
+                      3 · Real-world barriers (OpenStreetMap)
+                    </h3>
+                    <p>
+                      For each run we query the live Overpass API around the start point and
+                      pull three feature classes: <span className="text-red-400">major roads</span>,{" "}
+                      <span className="text-blue-400">rivers & water bodies</span>, and{" "}
+                      <span className="text-amber-400">urban / built-up land use</span>. Results
+                      are cached 30 min in memory. Each candidate step is penalized by proximity
+                      to nearby barriers, weighted by the species' sensitivity.
+                    </p>
+                  </div>
+
+                  <div>
+                    <h3 className="text-foreground text-xs uppercase tracking-widest mb-2">
+                      4 · Biased correlated random walk
+                    </h3>
+                    <p>
+                      At every step the simulator draws 8 candidate moves around the current
+                      heading. Each candidate is scored by:
+                    </p>
+                    <pre className="text-[11px] bg-background/60 border border-border rounded-sm p-3 my-2 text-foreground overflow-x-auto">
+{`score = w_habitat · habitat(p)
+      − w_barrier · barrierRisk(p)
+      − w_turn    · |Δheading|
+      + w_explore · noise`}
+                    </pre>
+                    <p>
+                      One of the top candidates is selected (slightly stochastic). Weights come
+                      from the species profile, so a wolf cruises in long correlated bouts while
+                      a tortoise tumbles in tight loops. The PRNG is seeded (mulberry32) so the
+                      same inputs always reproduce the same track.
+                    </p>
+                  </div>
+
+                  <div>
+                    <h3 className="text-foreground text-xs uppercase tracking-widest mb-2">
+                      5 · Timing
+                    </h3>
+                    <p>
+                      Step count is capped by the species' max daily distance and by simulation
+                      duration (max 400 points). Timestamps are spaced evenly across the
+                      requested window.
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-t border-border">
+                    <h3 className="text-amber-300 text-xs uppercase tracking-widest mb-2">
+                      Limits & honest caveats
+                    </h3>
+                    <ul className="list-disc list-inside space-y-1 text-xs">
+                      <li>The habitat field is procedural, not real land-cover.</li>
+                      <li>OSM barriers are crowd-sourced; rural areas may be sparse.</li>
+                      <li>No weather, no season, no inter-individual behaviour.</li>
+                      <li>
+                        Output is illustrative — never use it as evidence of where a real animal
+                        went.
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         )}
 
