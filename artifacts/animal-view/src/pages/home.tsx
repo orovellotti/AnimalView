@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import Map, { Source, Layer, Marker } from "react-map-gl/maplibre";
+import Map, { Source, Layer, Marker, type MapRef } from "react-map-gl/maplibre";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 // @ts-expect-error - @turf/turf exports map mismatch
@@ -63,6 +63,7 @@ export default function Home() {
   const [showHumanPressure, setShowHumanPressure] = useState<boolean>(false);
 
   const [basemap, setBasemap] = useState<"dark" | "satellite">("dark");
+  const mapRef = useRef<MapRef | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -124,6 +125,21 @@ export default function Home() {
       setSimResult(res as SimResult);
       setCurrentTimeIndex(0);
       setIsPlaying(false);
+      const pts = (res as SimResult).points;
+      if (pts && pts.length > 1 && mapRef.current) {
+        let minLat = pts[0].lat, maxLat = pts[0].lat;
+        let minLon = pts[0].lon, maxLon = pts[0].lon;
+        for (const p of pts) {
+          if (p.lat < minLat) minLat = p.lat;
+          if (p.lat > maxLat) maxLat = p.lat;
+          if (p.lon < minLon) minLon = p.lon;
+          if (p.lon > maxLon) maxLon = p.lon;
+        }
+        mapRef.current.fitBounds(
+          [[minLon, minLat], [maxLon, maxLat]],
+          { padding: 80, duration: 1200, maxZoom: 14 },
+        );
+      }
     } catch (e) {
       console.error("[sim] error:", e);
       alert("Simulation failed: " + (e as Error).message);
@@ -571,6 +587,7 @@ export default function Home() {
       {/* Main Map */}
       <div className="flex-1 relative">
         <Map
+          ref={mapRef}
           initialViewState={{ longitude: -115.5, latitude: 51.1, zoom: 10 }}
           mapStyle={mapStyleConfig}
           // @ts-expect-error - maplibregl prop accepted at runtime
