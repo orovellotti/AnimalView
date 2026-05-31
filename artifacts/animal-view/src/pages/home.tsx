@@ -224,6 +224,25 @@ export default function Home() {
 
   const currentPoint = activePoints?.[currentTimeIndex];
 
+  // Comet trail — the last few traversed points up to the current one, for a
+  // fading tail effect behind the moving marker.
+  const cometTrailGeojson = useMemo(() => {
+    if (!activePoints || activePoints.length < 2) return null;
+    if (currentTimeIndex < 1) return null;
+    const TAIL = 14;
+    const start = Math.max(0, currentTimeIndex - TAIL);
+    const segment = activePoints.slice(start, currentTimeIndex + 1);
+    if (segment.length < 2) return null;
+    return {
+      type: "Feature" as const,
+      properties: {},
+      geometry: {
+        type: "LineString" as const,
+        coordinates: segment.map((p) => [p.lon, p.lat]),
+      },
+    };
+  }, [activePoints, currentTimeIndex]);
+
   // Track centroid + extent (for real-mode OSM barrier fetch radius)
   const trackCenter = useMemo(() => {
     if (!activePoints || activePoints.length === 0) return null;
@@ -707,6 +726,40 @@ export default function Home() {
                   "line-opacity": mode === "sim" ? 0.85 : 0.4,
                   "line-blur": mode === "sim" ? 0 : 1,
                   "line-dasharray": mode === "sim" ? [2, 1.5] : [1, 0],
+                }}
+              />
+            </Source>
+          )}
+
+          {/* Comet trail — fading glow behind the moving point */}
+          {cometTrailGeojson && (
+            <Source id="comet-trail" type="geojson" lineMetrics data={cometTrailGeojson as any}>
+              <Layer
+                id="comet-trail-glow"
+                type="line"
+                layout={{ "line-cap": "round", "line-join": "round" }}
+                paint={{
+                  "line-width": 9,
+                  "line-blur": 8,
+                  "line-gradient": [
+                    "interpolate", ["linear"], ["line-progress"],
+                    0, mode === "sim" ? "rgba(103,232,249,0)" : "rgba(234,179,8,0)",
+                    1, mode === "sim" ? "rgba(103,232,249,0.5)" : "rgba(234,179,8,0.5)",
+                  ],
+                }}
+              />
+              <Layer
+                id="comet-trail-core"
+                type="line"
+                layout={{ "line-cap": "round", "line-join": "round" }}
+                paint={{
+                  "line-width": 3,
+                  "line-gradient": [
+                    "interpolate", ["linear"], ["line-progress"],
+                    0, mode === "sim" ? "rgba(165,243,252,0)" : "rgba(254,240,138,0)",
+                    0.6, mode === "sim" ? "rgba(103,232,249,0.6)" : "rgba(234,179,8,0.6)",
+                    1, mode === "sim" ? "rgba(224,255,255,1)" : "rgba(255,247,200,1)",
+                  ],
                 }}
               />
             </Source>
