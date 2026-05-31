@@ -30,6 +30,10 @@ const CATALOGS: Record<string, { name: string; file: string }> = {
     name: "Boutin Alberta Grey Wolf",
     file: "boutin_alberta_wolf.csv",
   },
+  "slavc-dispersal": {
+    name: "Slavc Dispersal (approx.)",
+    file: "slavc_dispersal.csv",
+  },
 };
 
 let loadedCatalogs: Map<string, Catalog> | null = null;
@@ -128,6 +132,12 @@ export function listRealStudies(species: string): {
   if (species !== "wolf") return [];
   return [
     {
+      id: "slavc-dispersal",
+      name: "Slavc Dispersal (approx.)",
+      principalInvestigator: "SLOWOLF / LIFE WOLFALPS (reconstructed)",
+      location: "Slovenia → Lessinia, Italian Alps",
+    },
+    {
       id: "boutin-alberta-wolf",
       name: "Boutin Alberta Grey Wolf",
       principalInvestigator: "Stan Boutin (U. Alberta)",
@@ -143,7 +153,7 @@ export function listRealIndividuals(
   if (!cat) return [];
   return Array.from(cat.individuals.keys())
     .sort()
-    .map((id) => ({ id, name: `Wolf ${id}` }));
+    .map((id) => ({ id, name: /^\d+$/.test(id) ? `Wolf ${id}` : id }));
 }
 
 export function getRealTrack(
