@@ -328,7 +328,30 @@ router.get("/streetview-image", async (req, res) => {
   const url = `https://maps.googleapis.com/maps/api/streetview?size=640x360&pano=${encodeURIComponent(
     pano_id,
   )}&heading=${encodeURIComponent(heading ?? "0")}&fov=90&key=${key}`;
-  res.redirect(url);
+  // Proxy the image bytes server-side instead of redirecting the browser to
+  // Google. This keeps the API key off the client and avoids browser-referrer
+  // based key restrictions that can block the image in production.
+  try {
+    const upstream = await fetch(url);
+    if (!upstream.ok) {
+      req.log.warn(
+        { status: upstream.status },
+        "streetview upstream fetch failed",
+      );
+      res.status(502).json({ error: "streetview unavailable" });
+      return;
+    }
+    const buf = Buffer.from(await upstream.arrayBuffer());
+    res.setHeader(
+      "Content-Type",
+      upstream.headers.get("content-type") ?? "image/jpeg",
+    );
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.send(buf);
+  } catch (err) {
+    req.log.error({ err }, "streetview proxy failed");
+    res.status(502).json({ error: "streetview unavailable" });
+  }
 });
 
 export default router;

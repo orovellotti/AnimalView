@@ -26,3 +26,11 @@ When Google/Mapillary keys are absent, "Find Context Imagery" falls back to Wiki
 **Robustness lesson:** Wikimedia geosearch must request several candidates (ggslimit ~20) and pick the nearest one that actually has both a thumbnail and coordinates. With ggslimit=1, a single nearest result missing either field made the whole point yield nothing.
 
 **UI lesson:** imageryMatches is local state — clear it on search start AND when study/individual/mode changes, and gate success-count text behind the mutation's isSuccess/!isPending, or stale counts linger across track switches.
+
+## Street View images: proxy bytes, never redirect
+
+The /api/streetview-image route must FETCH the Google Street View Static image server-side and stream the JPEG bytes back — never `res.redirect()` to the Google URL.
+
+**Why:** A 302 redirect (1) embeds GOOGLE_MAPS_API_KEY in a client-visible URL (key leak), and (2) makes the browser load the image cross-origin from Google with the app domain as Referer — Google key referrer restrictions then block it in production while it still works in dev. Server-side fetch has no browser Referer (confirmed: a no-Referer request returns 200), so it works regardless of referrer restrictions and hides the key.
+
+**How to apply:** Any third-party image needing a secret key → proxy bytes through the server, set Content-Type + Cache-Control, return 502 on upstream failure.
