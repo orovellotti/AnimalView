@@ -447,7 +447,18 @@ export default function Home() {
             <>
               <div className="space-y-2">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground">Species</Label>
-                <Select value={speciesId} onValueChange={setSpeciesId}>
+                <Select
+                  value={speciesId}
+                  onValueChange={(val) => {
+                    setSpeciesId(val);
+                    setStudyId("");
+                    setIndividualId("");
+                    setIsTracking(false);
+                    setCurrentTimeIndex(0);
+                    setIsPlaying(false);
+                    setActiveMatch(null);
+                  }}
+                >
                   <SelectTrigger className="bg-background/50 border-border font-mono text-sm">
                     <SelectValue placeholder="Select species..." />
                   </SelectTrigger>
@@ -463,7 +474,18 @@ export default function Home() {
 
               <div className="space-y-2">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground">Study</Label>
-                <Select value={studyId} onValueChange={setStudyId} disabled={!speciesId}>
+                <Select
+                  value={studyId}
+                  onValueChange={(val) => {
+                    setStudyId(val);
+                    setIndividualId("");
+                    setIsTracking(false);
+                    setCurrentTimeIndex(0);
+                    setIsPlaying(false);
+                    setActiveMatch(null);
+                  }}
+                  disabled={!speciesId}
+                >
                   <SelectTrigger className="bg-background/50 border-border font-mono text-sm">
                     <SelectValue placeholder="Select study..." />
                   </SelectTrigger>
@@ -722,9 +744,9 @@ export default function Home() {
                 type="line"
                 paint={{
                   "line-color": trackLineColor,
-                  "line-width": 2,
-                  "line-opacity": mode === "sim" ? 0.85 : 0.4,
-                  "line-blur": mode === "sim" ? 0 : 1,
+                  "line-width": mode === "sim" ? 2 : 2.5,
+                  "line-opacity": mode === "sim" ? 0.85 : 0.75,
+                  "line-blur": 0,
                   "line-dasharray": mode === "sim" ? [2, 1.5] : [1, 0],
                 }}
               />
