@@ -176,6 +176,7 @@ export default function Home() {
 
   const handleFindImagery = async () => {
     if (!trackReq.data?.points) return;
+    setImageryMatches([]);
     try {
       const res = await matchImageryMutation.mutateAsync({
         data: {
@@ -190,8 +191,17 @@ export default function Home() {
     }
   };
 
-  // Auto-fetch imagery once the real wolf track has loaded.
+  // Clear any previous imagery results (and re-arm auto-fetch) whenever the
+  // selected track context changes, so stale counts/photos never linger.
   const didAutoImageryRef = useRef(false);
+  useEffect(() => {
+    didAutoImageryRef.current = false;
+    setImageryMatches([]);
+    matchImageryMutation.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studyId, individualId, mode]);
+
+  // Auto-fetch imagery once the real wolf track has loaded.
   useEffect(() => {
     if (didAutoImageryRef.current) return;
     if (mode !== "real") return;
@@ -578,6 +588,24 @@ export default function Home() {
                 >
                   {matchImageryMutation.isPending ? "Searching..." : "Find Context Imagery"}
                 </Button>
+                {!matchImageryMutation.isPending &&
+                  matchImageryMutation.isSuccess &&
+                  imageryMatches.length === 0 && (
+                    <p className="text-[10px] text-muted-foreground/70 leading-relaxed font-mono">
+                      No geotagged photos found near this track. Many wild
+                      corridors have little or no public imagery — try a larger
+                      search radius or a different individual.
+                    </p>
+                  )}
+                {!matchImageryMutation.isPending &&
+                  matchImageryMutation.isSuccess &&
+                  imageryMatches.length > 0 && (
+                    <p className="text-[10px] text-primary/80 leading-relaxed font-mono">
+                      {imageryMatches.length} context image
+                      {imageryMatches.length === 1 ? "" : "s"} found along the
+                      track.
+                    </p>
+                  )}
               </div>
             </>
           ) : (

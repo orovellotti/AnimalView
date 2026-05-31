@@ -138,10 +138,12 @@ async function wikimediaNearby(
   }
   // gsradius capped at 10000m by Wikimedia; widen narrow search radii.
   const r = Math.min(10000, Math.max(radius, 5000));
+  // Fetch several nearby candidates so a single result missing a thumbnail or
+  // coordinates doesn't make the whole point yield nothing.
   const url =
     `https://commons.wikimedia.org/w/api.php?` +
     `action=query&format=json&origin=*` +
-    `&generator=geosearch&ggsnamespace=6&ggslimit=1` +
+    `&generator=geosearch&ggsnamespace=6&ggslimit=20` +
     `&ggsradius=${r}&ggscoord=${lat}%7C${lon}` +
     `&prop=imageinfo|coordinates&iiprop=url|extmetadata&iiurlwidth=640`;
   const resp = await fetch(url, {
@@ -173,21 +175,39 @@ async function wikimediaNearby(
     metadataCache.set(cacheKey, null);
     return null;
   }
-  const first = Object.values(pages)[0];
-  const info = first?.imageinfo?.[0];
-  const coord = first?.coordinates?.[0];
-  if (!first || !info?.thumburl || !coord) {
+  // Keep only candidates that actually have a thumbnail and coordinates, then
+  // pick the one geographically closest to the track point.
+  let best: {
+    id: string;
+    lat: number;
+    lon: number;
+    title: string;
+    thumbUrl: string;
+    descriptionUrl: string;
+    dist: number;
+  } | null = null;
+  for (const page of Object.values(pages)) {
+    const info = page?.imageinfo?.[0];
+    const coord = page?.coordinates?.[0];
+    if (!info?.thumburl || !coord) continue;
+    const dist = haversineMeters({ lat, lon }, { lat: coord.lat, lon: coord.lon });
+    if (!best || dist < best.dist) {
+      best = {
+        id: String(page.pageid),
+        lat: coord.lat,
+        lon: coord.lon,
+        title: page.title,
+        thumbUrl: info.thumburl,
+        descriptionUrl: info.descriptionurl ?? "",
+        dist,
+      };
+    }
+  }
+  if (!best) {
     metadataCache.set(cacheKey, null);
     return null;
   }
-  const result = {
-    id: String(first.pageid),
-    lat: coord.lat,
-    lon: coord.lon,
-    title: first.title,
-    thumbUrl: info.thumburl,
-    descriptionUrl: info.descriptionurl ?? "",
-  };
+  const { dist: _dist, ...result } = best;
   metadataCache.set(cacheKey, result);
   return result;
 }
