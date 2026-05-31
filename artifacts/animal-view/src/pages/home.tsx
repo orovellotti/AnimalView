@@ -64,7 +64,7 @@ export default function Home() {
   const [radius, setRadius] = useState<number>(2000);
   const [showHumanPressure, setShowHumanPressure] = useState<boolean>(false);
 
-  const [basemap, setBasemap] = useState<"dark" | "satellite">("dark");
+  const [basemap, setBasemap] = useState<"dark" | "satellite">("satellite");
   const mapRef = useRef<MapRef | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
