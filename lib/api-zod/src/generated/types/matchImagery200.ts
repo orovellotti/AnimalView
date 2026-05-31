@@ -8,7 +8,7 @@
 import type { ImageryMatch } from './imageryMatch';
 
 export type MatchImagery200 = {
-  /** real | demo */
+  /** real */
   mode: string;
   matches: ImageryMatch[];
 };

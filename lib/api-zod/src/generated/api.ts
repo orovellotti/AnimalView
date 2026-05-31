@@ -17,7 +17,7 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
- * @summary List curated demo species
+ * @summary List available species
  */
 export const ListSpeciesResponse = zod.object({
   "species": zod.array(zod.object({
@@ -76,7 +76,7 @@ export const GetTrackQueryParams = zod.object({
 export const GetTrackResponse = zod.object({
   "studyId": zod.string(),
   "individualId": zod.string(),
-  "mode": zod.string().describe('real | demo'),
+  "mode": zod.string().describe('real'),
   "points": zod.array(zod.object({
   "lat": zod.number(),
   "lon": zod.number(),
@@ -99,10 +99,10 @@ export const MatchImageryBody = zod.object({
 })
 
 export const MatchImageryResponse = zod.object({
-  "mode": zod.string().describe('real | demo'),
+  "mode": zod.string().describe('real'),
   "matches": zod.array(zod.object({
   "trackPointIndex": zod.number(),
-  "provider": zod.string().describe('google | mapillary | demo'),
+  "provider": zod.string().describe('google | mapillary | wikimedia'),
   "distanceM": zod.number(),
   "panoId": zod.string().optional(),
   "imageId": zod.string().optional(),
@@ -122,8 +122,7 @@ export const MatchImageryResponse = zod.object({
 export const GetProvidersResponse = zod.object({
   "google": zod.boolean(),
   "mapillary": zod.boolean(),
-  "movebank": zod.boolean(),
-  "demoMode": zod.boolean()
+  "movebank": zod.boolean()
 })
 
 

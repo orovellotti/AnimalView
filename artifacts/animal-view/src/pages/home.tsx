@@ -434,12 +434,6 @@ export default function Home() {
               </button>
             ))}
           </div>
-          {providersReq.data?.demoMode && mode === "real" && (
-            <div className="mt-4 px-3 py-2 bg-primary/10 border border-primary/20 rounded-sm">
-              <p className="text-[10px] text-primary uppercase font-mono tracking-wider">Demo Mode Active</p>
-              <p className="text-[10px] text-muted-foreground mt-1">Using simulated bear track around Banff</p>
-            </div>
-          )}
         </div>
 
         <div className="p-6 flex-1 overflow-y-auto space-y-6">

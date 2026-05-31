@@ -1,0 +1,1 @@
+- [AnimalView real-data-only policy](animalview-real-data-only.md) — never fabricate tracks/studies/imagery; track 404s when no real data; species.ts is real taxonomy not demo.

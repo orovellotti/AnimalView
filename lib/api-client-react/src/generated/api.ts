@@ -136,7 +136,7 @@ export const getListSpeciesUrl = () => {
 }
 
 /**
- * @summary List curated demo species
+ * @summary List available species
  */
 export const listSpecies = async ( options?: RequestInit): Promise<ListSpecies200> => {
 
@@ -183,7 +183,7 @@ export type ListSpeciesQueryError = ErrorType<unknown>
 
 
 /**
- * @summary List curated demo species
+ * @summary List available species
  */
 
 export function useListSpecies<TData = Awaited<ReturnType<typeof listSpecies>>, TError = ErrorType<unknown>>(

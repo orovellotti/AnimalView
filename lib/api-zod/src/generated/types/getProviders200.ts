@@ -10,5 +10,4 @@ export type GetProviders200 = {
   google: boolean;
   mapillary: boolean;
   movebank: boolean;
-  demoMode: boolean;
 };

@@ -35,7 +35,7 @@ paths:
     get:
       operationId: listSpecies
       tags: [catalog]
-      summary: List curated demo species
+      summary: List available species
       responses:
         "200":
           description: Species list
@@ -152,7 +152,7 @@ paths:
                 properties:
                   mode:
                     type: string
-                    description: "real | demo"
+                    description: "real"
                   matches:
                     type: array
                     items:
@@ -169,15 +169,13 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [google, mapillary, movebank, demoMode]
+                required: [google, mapillary, movebank]
                 properties:
                   google:
                     type: boolean
                   mapillary:
                     type: boolean
                   movebank:
-                    type: boolean
-                  demoMode:
                     type: boolean
   /sim-species:
     get:
@@ -298,7 +296,7 @@ components:
           type: string
         mode:
           type: string
-          description: "real | demo"
+          description: "real"
         points:
           type: array
           items:
@@ -326,7 +324,7 @@ components:
           type: integer
         provider:
           type: string
-          description: "google | mapillary | demo"
+          description: "google | mapillary | wikimedia"
         distanceM:
           type: number
         panoId:

@@ -8,7 +8,7 @@
 
 export interface ImageryMatch {
   trackPointIndex: number;
-  /** google | mapillary | demo */
+  /** google | mapillary | wikimedia */
   provider: string;
   distanceM: number;
   panoId?: string;

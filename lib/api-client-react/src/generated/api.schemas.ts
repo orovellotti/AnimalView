@@ -39,7 +39,7 @@ export interface TrackPoint {
 export interface Track {
   studyId: string;
   individualId: string;
-  /** real | demo */
+  /** real */
   mode: string;
   points: TrackPoint[];
 }
@@ -53,7 +53,7 @@ export interface MatchImageryRequest {
 
 export interface ImageryMatch {
   trackPointIndex: number;
-  /** google | mapillary | demo */
+  /** google | mapillary | wikimedia */
   provider: string;
   distanceM: number;
   panoId?: string;
@@ -171,7 +171,7 @@ to?: string;
 };
 
 export type MatchImagery200 = {
-  /** real | demo */
+  /** real */
   mode: string;
   matches: ImageryMatch[];
 };
@@ -180,7 +180,6 @@ export type GetProviders200 = {
   google: boolean;
   mapillary: boolean;
   movebank: boolean;
-  demoMode: boolean;
 };
 
 export type GetHumanPressureParams = {

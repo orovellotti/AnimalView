@@ -6,11 +6,7 @@ import {
   ListIndividualsQueryParams,
   ListIndividualsResponse,
 } from "@workspace/api-zod";
-import {
-  DEMO_SPECIES,
-  DEMO_STUDIES,
-  DEMO_INDIVIDUALS,
-} from "../lib/demoData";
+import { SPECIES } from "../lib/species";
 import { hasMovebank } from "../lib/providers";
 import {
   searchMovebankStudies,
@@ -25,7 +21,7 @@ import {
 const router: IRouter = Router();
 
 router.get("/species", (_req, res) => {
-  const data = ListSpeciesResponse.parse({ species: DEMO_SPECIES });
+  const data = ListSpeciesResponse.parse({ species: SPECIES });
   res.json(data);
 });
 
@@ -35,21 +31,20 @@ router.get("/studies", async (req, res) => {
     res.status(400).json({ error: "species query param required" });
     return;
   }
-  const demoStudies = DEMO_STUDIES[parsed.data.species] ?? [];
   const bundledStudies = listRealStudies(parsed.data.species);
-  let realStudies: typeof demoStudies = [];
+  let movebankStudies: typeof bundledStudies = [];
   if (hasMovebank()) {
-    const sp = DEMO_SPECIES.find((s) => s.id === parsed.data.species);
+    const sp = SPECIES.find((s) => s.id === parsed.data.species);
     if (sp) {
       try {
-        realStudies = await searchMovebankStudies(sp.scientificName);
+        movebankStudies = await searchMovebankStudies(sp.scientificName);
       } catch (err) {
         req.log.warn({ err }, "movebank studies fetch failed");
       }
     }
   }
   const data = ListStudiesResponse.parse({
-    studies: [...bundledStudies, ...realStudies, ...demoStudies],
+    studies: [...bundledStudies, ...movebankStudies],
   });
   res.json(data);
 });
@@ -61,11 +56,6 @@ router.get("/individuals", async (req, res) => {
     return;
   }
   const { studyId } = parsed.data;
-  if (studyId.startsWith("demo-")) {
-    const individuals = DEMO_INDIVIDUALS[studyId] ?? [];
-    res.json(ListIndividualsResponse.parse({ individuals }));
-    return;
-  }
   if (isRealStudy(studyId)) {
     const individuals = listRealIndividuals(studyId);
     res.json(ListIndividualsResponse.parse({ individuals }));

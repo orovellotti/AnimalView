@@ -10,7 +10,7 @@ import type { TrackPoint } from './trackPoint';
 export interface Track {
   studyId: string;
   individualId: string;
-  /** real | demo */
+  /** real */
   mode: string;
   points: TrackPoint[];
 }

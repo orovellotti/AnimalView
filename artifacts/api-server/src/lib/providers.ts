@@ -11,7 +11,3 @@ export function hasMovebank(): boolean {
     process.env["MOVEBANK_USERNAME"] && process.env["MOVEBANK_PASSWORD"],
   );
 }
-
-export function isDemoMode(): boolean {
-  return !hasGoogle() && !hasMapillary() && !hasMovebank();
-}

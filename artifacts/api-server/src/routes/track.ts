@@ -1,6 +1,5 @@
 import { Router, type IRouter } from "express";
 import { GetTrackQueryParams, GetTrackResponse } from "@workspace/api-zod";
-import { generateDemoTrack } from "../lib/demoData";
 import { hasMovebank } from "../lib/providers";
 import { isRealStudy, getRealTrack } from "../lib/realTracks";
 
@@ -55,8 +54,6 @@ router.get("/track", async (req, res) => {
     return;
   }
   const { studyId, individualId, from, to } = parsed.data;
-  let points: { lat: number; lon: number; timestamp: string }[] | null = null;
-  let mode = "demo";
   if (isRealStudy(studyId)) {
     const real = getRealTrack(studyId, individualId);
     if (real && real.length > 0) {
@@ -70,25 +67,26 @@ router.get("/track", async (req, res) => {
       return;
     }
   }
-  if (hasMovebank() && !studyId.startsWith("demo-")) {
+  if (hasMovebank()) {
     try {
-      points = await fetchMovebankTrack(studyId, individualId, from, to);
-      if (points && points.length > 0) mode = "real";
+      const points = await fetchMovebankTrack(studyId, individualId, from, to);
+      if (points && points.length > 0) {
+        const data = GetTrackResponse.parse({
+          studyId,
+          individualId,
+          mode: "real",
+          points,
+        });
+        res.json(data);
+        return;
+      }
     } catch (err) {
-      req.log.warn({ err }, "movebank fetch failed, falling back to demo");
+      req.log.warn({ err }, "movebank fetch failed");
     }
   }
-  if (!points || points.length === 0) {
-    points = generateDemoTrack(studyId, individualId);
-    mode = "demo";
-  }
-  const data = GetTrackResponse.parse({
-    studyId,
-    individualId,
-    mode,
-    points,
+  res.status(404).json({
+    error: "no track data available for this study/individual",
   });
-  res.json(data);
 });
 
 export default router;
