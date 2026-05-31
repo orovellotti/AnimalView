@@ -351,18 +351,22 @@ export default function Home() {
     const pt = turf.point([currentPoint.lon, currentPoint.lat]);
     let closest = null;
     let minDistance = Infinity;
+    // Show the closest available image within the user's search radius (with a
+    // small floor) so context imagery actually surfaces as the animal moves —
+    // a 100m gate left the panel empty almost everywhere.
+    const maxDistance = Math.max(radius, 1500);
     for (const match of imageryMatches) {
       if (match.imageLon && match.imageLat) {
         const matchPt = turf.point([match.imageLon, match.imageLat]);
         const dist = turf.distance(pt, matchPt, { units: "meters" });
-        if (dist < 100 && dist < minDistance) {
+        if (dist <= maxDistance && dist < minDistance) {
           minDistance = dist;
           closest = match;
         }
       }
     }
     setActiveMatch(closest);
-  }, [mode, currentPoint, imageryMatches]);
+  }, [mode, currentPoint, imageryMatches, radius]);
 
   // Reset playback when switching modes
   useEffect(() => {
