@@ -460,7 +460,17 @@ export default function Home() {
 
               <div className="space-y-2">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground">Individual</Label>
-                <Select value={individualId} onValueChange={setIndividualId} disabled={!studyId}>
+                <Select
+                  value={individualId}
+                  onValueChange={(val) => {
+                    setIndividualId(val);
+                    setIsTracking(true);
+                    setCurrentTimeIndex(0);
+                    setIsPlaying(false);
+                    setActiveMatch(null);
+                  }}
+                  disabled={!studyId}
+                >
                   <SelectTrigger className="bg-background/50 border-border font-mono text-sm">
                     <SelectValue placeholder="Select individual..." />
                   </SelectTrigger>
