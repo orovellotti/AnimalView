@@ -86,15 +86,31 @@ async function mapillaryNearby(
   date?: string;
   thumbUrl?: string;
 } | null> {
-  const token = process.env["MAPILLARY_ACCESS_TOKEN"];
+  // A Mapillary v4 client token has the canonical shape `MLY|<appId>|<32 hex>`.
+  // Extract that pattern from the env value so stray characters introduced by a
+  // copy/paste (e.g. a trailing digit or surrounding whitespace) don't cause
+  // "Error verifying the token". Fall back to the trimmed raw value otherwise.
+  const rawToken = process.env["MAPILLARY_ACCESS_TOKEN"];
+  const token =
+    rawToken?.match(/MLY\|\d+\|[0-9a-f]{32}/i)?.[0] ?? rawToken?.trim();
   if (!token) return null;
   const cacheKey = `m:${lat.toFixed(4)}:${lon.toFixed(4)}:${radius}`;
   if (metadataCache.has(cacheKey)) {
     return metadataCache.get(cacheKey) as never;
   }
   // ~1e-5 deg ≈ 1.11m. Build a small bbox around the point.
-  const dLat = radius / 111000;
-  const dLon = radius / (111000 * Math.max(0.01, Math.cos((lat * Math.PI) / 180)));
+  let dLat = radius / 111000;
+  let dLon = radius / (111000 * Math.max(0.01, Math.cos((lat * Math.PI) / 180)));
+  // Mapillary rejects bboxes larger than 0.010 sq deg with a 500. If the
+  // requested radius would exceed that, shrink the box (preserving aspect ratio)
+  // so the request still succeeds for a tighter search area.
+  const MAX_BBOX_AREA = 0.0099;
+  const bboxArea = 2 * dLat * (2 * dLon);
+  if (bboxArea > MAX_BBOX_AREA) {
+    const scale = Math.sqrt(MAX_BBOX_AREA / bboxArea);
+    dLat *= scale;
+    dLon *= scale;
+  }
   const bbox = `${lon - dLon},${lat - dLat},${lon + dLon},${lat + dLat}`;
   const url = `https://graph.mapillary.com/images?access_token=${token}&fields=id,computed_geometry,captured_at,thumb_1024_url&bbox=${bbox}&limit=1`;
   const r = await fetch(url);

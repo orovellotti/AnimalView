@@ -5,3 +5,4 @@
 - [Adding a real track](adding-real-track.md) — register CSV in 4 spots (data/ file, CATALOGS, listRealStudies branch, species.ts); missing the listRealStudies branch = data loads but invisible in UI.
 - [Photo stepper identity](photo-stepper-identity.md) — PRÉC./SUIV. must track active photo by object reference, not imageId (undefined for Street View freezes it); auto-follow gated by manualPhotoRef.
 - [Google mountain imagery](google-mountain-imagery.md) — user Photo Spheres only return with DEFAULT source (source=outdoor → ZERO_RESULTS); match threshold must follow Search Radius, not fixed 50m; Places API blocked by key referer.
+- [Mapillary imagery](mapillary-imagery.md) — normalize token to `MLY|\d+|[0-9a-f]{32}` in code (paste artifacts cause "Error verifying the token"); bbox area hard-capped at 0.010 sq deg (clamp dLat/dLon or 500); alpine coverage genuinely sparse.
