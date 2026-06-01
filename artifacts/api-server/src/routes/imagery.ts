@@ -449,13 +449,13 @@ router.post("/analyze-imagery", async (req, res) => {
     const base64 = Buffer.from(await imgRes.arrayBuffer()).toString("base64");
 
     const sci = scientificName ? ` (${scientificName})` : "";
-    const hab = habitat ? ` Its typical habitat: ${habitat}.` : "";
-    const dist = distanceM != null ? ` This place sits about ${Math.round(distanceM)} meters from the animal's recorded path.` : "";
-    const prompt = `You are a wild ${species}${sci}, a real animal moving through this exact landscape.${hab}${dist}
+    const hab = habitat ? ` Typical habitat for this species: ${habitat}.` : "";
+    const dist = distanceM != null ? ` This location is about ${Math.round(distanceM)} meters from the animal's recorded GPS path.` : "";
+    const prompt = `This is a photograph of terrain along the recorded movement path of a ${species}${sci}.${hab}${dist}
 
-Look closely at this photograph of the terrain. Describe this place from your own senses and instincts, in the first person ("I"). Ground every observation in what is actually visible in the image — terrain, vegetation, cover, water, open ground, roads, vehicles, buildings, or signs of humans. Read the scene as survival: where is shelter, where might prey or food be, where is danger, and what do you do next.
+Describe what is actually visible in the image in plain, factual language: landforms and terrain, vegetation type and cover, water, open versus enclosed ground, and any human features such as roads, vehicles, buildings, fences, or trails. Then state, factually, how these features are relevant to the species — what they offer or constrain in terms of cover, forage, movement, or human disturbance.
 
-Write 2 to 4 short sentences, present tense, vivid but restrained. Do not invent things that are not in the image. Do not mention cameras, photos, GPS, or that you are an AI. End with the instinctive decision you make here.`;
+Write 2 to 4 short, neutral sentences. Only describe what is present in the image; do not speculate or invent details. Avoid dramatic or first-person language and do not mention cameras, photos, or AI.`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
