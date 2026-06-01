@@ -22,12 +22,14 @@ import type {
 import type {
   AnalyzeImagery200,
   AnalyzeImageryRequest,
+  GetHumanPresenceParams,
   GetHumanPressureParams,
   GetProviders200,
   GetTrackParams,
   GetWeather200,
   GetWeatherParams,
   HealthStatus,
+  HumanPresenceResult,
   HumanPressureResult,
   ListIndividuals200,
   ListIndividualsParams,
@@ -912,6 +914,90 @@ export function useGetHumanPressure<TData = Awaited<ReturnType<typeof getHumanPr
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetHumanPressureQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetHumanPresenceUrl = (params: GetHumanPresenceParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/human-presence?${stringifiedParams}` : `/api/human-presence`
+}
+
+/**
+ * @summary Fetch OSM-derived potential human-presence points (trails, lifts, huts, amenities, roads, settlements) with weights around a coordinate
+ */
+export const getHumanPresence = async (params: GetHumanPresenceParams, options?: RequestInit): Promise<HumanPresenceResult> => {
+
+  return customFetch<HumanPresenceResult>(getGetHumanPresenceUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetHumanPresenceQueryKey = (params?: GetHumanPresenceParams,) => {
+    return [
+    `/api/human-presence`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetHumanPresenceQueryOptions = <TData = Awaited<ReturnType<typeof getHumanPresence>>, TError = ErrorType<unknown>>(params: GetHumanPresenceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHumanPresence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetHumanPresenceQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getHumanPresence>>> = ({ signal }) => getHumanPresence(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getHumanPresence>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetHumanPresenceQueryResult = NonNullable<Awaited<ReturnType<typeof getHumanPresence>>>
+export type GetHumanPresenceQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Fetch OSM-derived potential human-presence points (trails, lifts, huts, amenities, roads, settlements) with weights around a coordinate
+ */
+
+export function useGetHumanPresence<TData = Awaited<ReturnType<typeof getHumanPresence>>, TError = ErrorType<unknown>>(
+ params: GetHumanPresenceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHumanPresence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetHumanPresenceQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

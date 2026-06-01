@@ -287,6 +287,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HumanPressureResult"
+  /human-presence:
+    get:
+      operationId: getHumanPresence
+      tags: [simulation]
+      summary: Fetch OSM-derived potential human-presence points (trails, lifts, huts, amenities, roads, settlements) with weights around a coordinate
+      parameters:
+        - in: query
+          name: lat
+          required: true
+          schema: { type: number }
+        - in: query
+          name: lon
+          required: true
+          schema: { type: number }
+        - in: query
+          name: radius
+          required: false
+          schema: { type: number, default: 8000 }
+      responses:
+        "200":
+          description: Human-presence features weighted by intensity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HumanPresenceResult"
   /simulate-track:
     post:
       operationId: simulateTrack
@@ -542,6 +567,39 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SimBarrier"
+    PresenceFeature:
+      type: object
+      required: [category, weight, lat, lon]
+      properties:
+        category:
+          type: string
+          description: "trail | road | aerialway | tourism | amenity | building | settlement | leisure"
+        weight:
+          type: number
+          description: "Relative potential human-presence intensity, 0..1"
+        name:
+          type: string
+          description: "OSM name when present, e.g. Refuge des Évettes, Télésiège"
+        lat:
+          type: number
+        lon:
+          type: number
+    HumanPresenceResult:
+      type: object
+      required: [center, radius, features]
+      properties:
+        center:
+          type: object
+          required: [lat, lon]
+          properties:
+            lat: { type: number }
+            lon: { type: number }
+        radius:
+          type: number
+        features:
+          type: array
+          items:
+            $ref: "#/components/schemas/PresenceFeature"
     SimulateTrackResult:
       type: object
       required: [speciesId, individualId, points, barriers, warnings]

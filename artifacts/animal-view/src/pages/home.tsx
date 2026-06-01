@@ -23,6 +23,8 @@ import {
   useSimulateTrack,
   useGetHumanPressure,
   getGetHumanPressureQueryKey,
+  useGetHumanPresence,
+  getGetHumanPresenceQueryKey,
 } from "@workspace/api-client-react";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -451,16 +453,17 @@ export default function Home() {
     return { lat, lon, radius };
   }, [activePoints]);
 
-  // Real-mode: fetch OSM barriers around the track when toggle is on
-  const realPressureReq = useGetHumanPressure(
+  // Real-mode: fetch OSM potential human-presence features (trails, lifts,
+  // huts, parking, roads, settlements) around the track for the heatmap.
+  const realPresenceReq = useGetHumanPresence(
     trackCenter
       ? { lat: trackCenter.lat, lon: trackCenter.lon, radius: trackCenter.radius }
       : { lat: 0, lon: 0, radius: 8000 },
     {
       query: {
-        enabled: mode === "real" && !!trackCenter,
+        enabled: mode === "real" && showHumanPressure && !!trackCenter,
         staleTime: 5 * 60 * 1000,
-        queryKey: getGetHumanPressureQueryKey(
+        queryKey: getGetHumanPresenceQueryKey(
           trackCenter
             ? { lat: trackCenter.lat, lon: trackCenter.lon, radius: trackCenter.radius }
             : { lat: 0, lon: 0, radius: 8000 },
@@ -515,23 +518,38 @@ export default function Home() {
     return { barrier: best, distanceM: bestD };
   }, [currentPoint, mode, simResult, localBarrierReq.data]);
 
-  // Human-pressure heatmap source — barriers from sim result or real-mode fetch
+  // Human-presence heatmap source. In real mode this uses purpose-built OSM
+  // presence features (trails, lifts, huts, parking, roads, settlements)
+  // each carrying its own intensity weight. In sim mode there is no real OSM
+  // fetch, so we approximate from the simulator's barriers (roads + built-up).
   const humanPressureGeojson = useMemo(() => {
-    const barriers =
-      mode === "sim"
-        ? simResult?.barriers
-        : realPressureReq.data?.features;
-    if (!barriers || barriers.length === 0) return null;
-    const features = barriers
-      .filter((b) => b.kind === "highway" || b.kind === "urban")
-      .map((b) => ({
+    let features: {
+      type: "Feature";
+      properties: { weight: number };
+      geometry: { type: "Point"; coordinates: [number, number] };
+    }[];
+    if (mode === "real") {
+      const presence = realPresenceReq.data?.features;
+      if (!presence || presence.length === 0) return null;
+      features = presence.map((p) => ({
         type: "Feature" as const,
-        properties: { weight: b.kind === "highway" ? 1 : 0.6 },
-        geometry: { type: "Point" as const, coordinates: [b.lon, b.lat] },
+        properties: { weight: p.weight },
+        geometry: { type: "Point" as const, coordinates: [p.lon, p.lat] },
       }));
-    console.log("[heatmap] human-pressure features:", features.length, "mode:", mode);
+    } else {
+      const barriers = simResult?.barriers;
+      if (!barriers || barriers.length === 0) return null;
+      features = barriers
+        .filter((b) => b.kind === "highway" || b.kind === "urban")
+        .map((b) => ({
+          type: "Feature" as const,
+          properties: { weight: b.kind === "highway" ? 1 : 0.6 },
+          geometry: { type: "Point" as const, coordinates: [b.lon, b.lat] },
+        }));
+    }
+    if (features.length === 0) return null;
     return { type: "FeatureCollection" as const, features };
-  }, [mode, simResult, realPressureReq.data]);
+  }, [mode, simResult, realPresenceReq.data]);
 
   // Auto-fit map to show the entire track whenever a new one appears
   useEffect(() => {
@@ -874,7 +892,7 @@ export default function Home() {
                   </span>
                 </button>
                 <p className="text-[10px] text-muted-foreground/60 leading-relaxed font-mono mt-2">
-                  Overlay roads, buildings &amp; industrial sites from OpenStreetMap.
+                  Overlay potential human presence — trails, lifts, huts, roads &amp; settlements (OpenStreetMap).
                 </p>
               </div>
 
@@ -956,7 +974,7 @@ export default function Home() {
                   </span>
                 </button>
                 <p className="text-[10px] text-muted-foreground/60 leading-relaxed font-mono mt-2">
-                  Density of roads &amp; buildings (OSM). Generate a track first to populate the data.
+                  Density of roads &amp; built-up areas (OSM). Generate a track first to populate the data.
                 </p>
               </div>
 
@@ -1090,7 +1108,7 @@ export default function Home() {
             </Source>
           )}
 
-          {/* Human-pressure heatmap (OSM-derived: roads + urban areas) */}
+          {/* Human-presence heatmap (OSM-derived: trails, lifts, huts, parking, roads, settlements) */}
           {showHumanPressure && humanPressureGeojson && (
             <Source id="human-pressure-heat" type="geojson" data={humanPressureGeojson as any}>
               <Layer

@@ -213,6 +213,33 @@ export const GetHumanPressureResponse = zod.object({
 
 
 /**
+ * @summary Fetch OSM-derived potential human-presence points (trails, lifts, huts, amenities, roads, settlements) with weights around a coordinate
+ */
+export const getHumanPresenceQueryRadiusDefault = 8000;
+
+export const GetHumanPresenceQueryParams = zod.object({
+  "lat": zod.coerce.number(),
+  "lon": zod.coerce.number(),
+  "radius": zod.coerce.number().default(getHumanPresenceQueryRadiusDefault)
+})
+
+export const GetHumanPresenceResponse = zod.object({
+  "center": zod.object({
+  "lat": zod.number(),
+  "lon": zod.number()
+}),
+  "radius": zod.number(),
+  "features": zod.array(zod.object({
+  "category": zod.string().describe('trail | road | aerialway | tourism | amenity | building | settlement | leisure'),
+  "weight": zod.number().describe('Relative potential human-presence intensity, 0..1'),
+  "name": zod.string().optional().describe('OSM name when present, e.g. Refuge des Évettes, Télésiège'),
+  "lat": zod.number(),
+  "lon": zod.number()
+}))
+})
+
+
+/**
  * @summary Generate a synthetic plausible animal track
  */
 

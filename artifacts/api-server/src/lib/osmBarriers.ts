@@ -18,7 +18,11 @@ interface CacheEntry {
 const CACHE = new Map<string, CacheEntry>();
 const TTL_MS = 30 * 60 * 1000;
 const FAILURE_TTL_MS = 45 * 1000;
+// The FR mirror is the most reliable from this environment: overpass-api.de
+// frequently refuses connections (ECONNREFUSED) and kumi.systems is often slow.
+// Order = preference; we fall through to the next on failure.
 const OVERPASS_ENDPOINTS = [
+  "https://overpass.openstreetmap.fr/api/interpreter",
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
 ];

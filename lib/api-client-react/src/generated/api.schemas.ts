@@ -156,6 +156,28 @@ export interface HumanPressureResult {
   features: SimBarrier[];
 }
 
+export interface PresenceFeature {
+  /** trail | road | aerialway | tourism | amenity | building | settlement | leisure */
+  category: string;
+  /** Relative potential human-presence intensity, 0..1 */
+  weight: number;
+  /** OSM name when present, e.g. Refuge des Évettes, Télésiège */
+  name?: string;
+  lat: number;
+  lon: number;
+}
+
+export type HumanPresenceResultCenter = {
+  lat: number;
+  lon: number;
+};
+
+export interface HumanPresenceResult {
+  center: HumanPresenceResultCenter;
+  radius: number;
+  features: PresenceFeature[];
+}
+
 export interface SimulateTrackResult {
   speciesId: string;
   individualId: string;
@@ -230,6 +252,12 @@ export type GetProviders200 = {
 };
 
 export type GetHumanPressureParams = {
+lat: number;
+lon: number;
+radius?: number;
+};
+
+export type GetHumanPresenceParams = {
 lat: number;
 lon: number;
 radius?: number;

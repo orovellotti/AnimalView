@@ -4,10 +4,12 @@ import {
   SimulateTrackResponse,
   ListSimSpeciesResponse,
   GetHumanPressureResponse,
+  GetHumanPresenceResponse,
 } from "@workspace/api-zod";
 import { SIM_SPECIES } from "../lib/simSpecies";
 import { simulateTrack } from "../lib/simulator";
 import { fetchBarriersNear } from "../lib/osmBarriers";
+import { fetchHumanPresenceNear } from "../lib/osmHumanPresence";
 
 const router: IRouter = Router();
 
@@ -70,6 +72,31 @@ router.get("/human-pressure", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "human-pressure failed");
     res.status(500).json({ error: "pressure fetch failed" });
+  }
+});
+
+router.get("/human-presence", async (req, res) => {
+  const lat = Number(req.query.lat);
+  const lon = Number(req.query.lon);
+  const radius = Number(req.query.radius ?? 8000);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    res.status(400).json({ error: "lat and lon required" });
+    return;
+  }
+  // Cap tighter than barriers: a multi-km Overpass box for presence (many
+  // categories) gets slow past ~14km, and the 30-min cache absorbs repeats.
+  const r = Math.max(1000, Math.min(14000, Number.isFinite(radius) ? radius : 8000));
+  try {
+    const features = await fetchHumanPresenceNear(lat, lon, r);
+    const data = GetHumanPresenceResponse.parse({
+      center: { lat, lon },
+      radius: r,
+      features,
+    });
+    res.json(data);
+  } catch (err) {
+    req.log.error({ err }, "human-presence failed");
+    res.status(500).json({ error: "presence fetch failed" });
   }
 });
 

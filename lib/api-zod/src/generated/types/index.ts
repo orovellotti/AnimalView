@@ -8,12 +8,15 @@
 
 export * from './analyzeImagery200';
 export * from './analyzeImageryRequest';
+export * from './getHumanPresenceParams';
 export * from './getHumanPressureParams';
 export * from './getProviders200';
 export * from './getTrackParams';
 export * from './getWeather200';
 export * from './getWeatherParams';
 export * from './healthStatus';
+export * from './humanPresenceResult';
+export * from './humanPresenceResultCenter';
 export * from './humanPressureResult';
 export * from './humanPressureResultCenter';
 export * from './imageryMatch';
@@ -25,6 +28,7 @@ export * from './listStudies200';
 export * from './listStudiesParams';
 export * from './matchImagery200';
 export * from './matchImageryRequest';
+export * from './presenceFeature';
 export * from './simBarrier';
 export * from './simSpeciesList';
 export * from './simSpeciesProfile';
