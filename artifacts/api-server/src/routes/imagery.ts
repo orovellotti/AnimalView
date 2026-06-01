@@ -54,6 +54,10 @@ async function googleMetadata(
   if (metadataCache.has(cacheKey)) {
     return metadataCache.get(cacheKey) as never;
   }
+  // Use the default source (NOT source=outdoor): in remote mountain terrain the
+  // only Google coverage is user-contributed Photo Spheres people shoot on
+  // trails and peaks, and those are returned by the default source but excluded
+  // by source=outdoor (which only covers official Street View collections).
   const url = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lon}&radius=${radius}&key=${key}`;
   const r = await fetch(url);
   if (!r.ok) return null;
@@ -230,7 +234,11 @@ router.post("/match-imagery", async (req, res) => {
     res.status(400).json({ error: "invalid request body" });
     return;
   }
-  const { points, radius, providers } = parsed.data;
+  const { points, providers } = parsed.data;
+  // Clamp to the UI's Search Radius range (500–10000m). Because the match
+  // threshold now follows radius, an unbounded value would pull in weakly
+  // relevant photos far from the track, so enforce the contract server-side.
+  const radius = Math.min(10000, Math.max(500, parsed.data.radius));
   const sampled = downsampleByDistance(
     points as TrackPoint[],
     Math.max(80, radius * 2),
@@ -317,11 +325,14 @@ router.post("/match-imagery", async (req, res) => {
       }
     }
   }
-  // Keep only photos that genuinely intersect the track: measure the true
-  // distance from each photo's location to the track polyline (not just to the
-  // sampled query point) and drop anything farther than the intersection
-  // threshold. Also recompute distance/confidence from this true distance.
-  const INTERSECTION_THRESHOLD_M = 50;
+  // Keep photos near the track: measure the true distance from each photo's
+  // location to the track polyline (not just to the sampled query point) and
+  // drop anything farther than the threshold. The threshold follows the user's
+  // search radius (with a small floor) so sparse, real, user-contributed
+  // mountain photos — which sit hundreds of metres off the GPS path — actually
+  // surface instead of being cut by a fixed 50 m gate. Recompute
+  // distance/confidence from this true distance.
+  const INTERSECTION_THRESHOLD_M = Math.max(50, radius);
   const track = points as TrackPoint[];
   const intersecting = matches.filter((m) => {
     if (m.imageLat == null || m.imageLon == null) return false;
