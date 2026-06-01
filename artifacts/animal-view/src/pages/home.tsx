@@ -86,6 +86,7 @@ export default function Home() {
   );
 
   const [isTracking, setIsTracking] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const trackReq = useGetTrack(
     { studyId, individualId },
@@ -169,6 +170,7 @@ export default function Home() {
     setIsTracking(true);
     setCurrentTimeIndex(0);
     setActiveMatch(null);
+    setSidebarOpen(false);
   };
 
   const handleSimulate = async () => {
@@ -186,6 +188,7 @@ export default function Home() {
       setSimResult(res as SimResult);
       setCurrentTimeIndex(0);
       setIsPlaying(false);
+      setSidebarOpen(false);
     } catch (e) {
       console.error("[sim] error:", e);
       alert("Simulation failed: " + (e as Error).message);
@@ -520,11 +523,38 @@ export default function Home() {
   }, [basemap]);
 
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden dark text-foreground">
+    <div className="relative flex h-screen w-full bg-background overflow-hidden dark text-foreground">
+      {/* Floating reopen button when sidebar is collapsed */}
+      {!sidebarOpen && (
+        <button
+          type="button"
+          onClick={() => setSidebarOpen(true)}
+          title="Show controls"
+          className="absolute left-3 top-3 z-30 flex items-center gap-2 px-3 h-9 rounded-sm bg-background/90 backdrop-blur-md border border-border shadow-xl text-[10px] font-mono uppercase tracking-widest text-primary hover:bg-primary/10 transition-colors"
+        >
+          <ChevronRight className="w-4 h-4" />
+          Controls
+        </button>
+      )}
+
       {/* Sidebar */}
-      <div className="w-80 border-r border-border bg-sidebar/90 backdrop-blur-md flex flex-col z-10 shadow-xl">
+      <div
+        className={`${
+          sidebarOpen ? "w-80" : "w-0"
+        } shrink-0 border-r border-border bg-sidebar/90 backdrop-blur-md flex flex-col z-10 shadow-xl overflow-hidden transition-all duration-300`}
+      >
         <div className="p-6 border-b border-border">
-          <h1 className="text-xl tracking-widest font-mono font-bold text-primary mb-1 uppercase">AnimalView</h1>
+          <div className="flex items-start justify-between">
+            <h1 className="text-xl tracking-widest font-mono font-bold text-primary mb-1 uppercase">AnimalView</h1>
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(false)}
+              title="Hide controls"
+              className="shrink-0 -mr-2 -mt-1 w-8 h-8 flex items-center justify-center rounded-sm text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          </div>
           <p className="text-xs text-muted-foreground uppercase tracking-widest">
             {mode === "sim" ? "Synthetic paths" : "Reconstructing paths"}
           </p>
