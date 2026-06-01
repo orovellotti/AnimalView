@@ -239,11 +239,31 @@ router.post("/match-imagery", async (req, res) => {
   // threshold now follows radius, an unbounded value would pull in weakly
   // relevant photos far from the track, so enforce the contract server-side.
   const radius = Math.min(10000, Math.max(500, parsed.data.radius));
-  const sampled = downsampleByDistance(
-    points as TrackPoint[],
-    Math.max(80, radius * 2),
-  );
-  const matches: Match[] = [];
+  // Sample the track at a fixed spacing INDEPENDENT of the search radius.
+  // Tying spacing to radius (e.g. radius*2) is counterproductive: a large
+  // radius collapses the whole track to a single query point and returns FEWER
+  // photos. A fixed ~250 m spacing probes many distinct spots along the path,
+  // so more unique panoramas/photos surface; the radius only controls how far
+  // off-track a returned photo may sit.
+  const SAMPLE_SPACING_M = 250;
+  // Hard cap on query points so outbound API fanout (sampleCount × providers)
+  // stays bounded regardless of track length/density — guards third-party
+  // quota/cost and request latency. Animals meander, so a track's cumulative
+  // path can be hundreds of km (the ibex track is ~255 km → ~1000 samples at
+  // 250 m); the cap keeps fanout sane while still spreading probes across the
+  // whole path to capture nearly all distinct nearby panoramas.
+  const MAX_QUERY_POINTS = 200;
+  let sampled = downsampleByDistance(points as TrackPoint[], SAMPLE_SPACING_M);
+  if (sampled.length > MAX_QUERY_POINTS) {
+    // Deterministic stride thinning guarantees the cap holds even when the
+    // input is already sparser than SAMPLE_SPACING_M (where re-downsampling by
+    // distance cannot remove points). Keep every Nth sample plus the last one.
+    const step = Math.ceil(sampled.length / MAX_QUERY_POINTS);
+    const thinned = sampled.filter((_, i) => i % step === 0);
+    const last = sampled[sampled.length - 1]!;
+    if (thinned[thinned.length - 1] !== last) thinned.push(last);
+    sampled = thinned;
+  }
   const wantGoogle = providers.includes("google") && hasGoogle();
   const wantMapillary = providers.includes("mapillary") && hasMapillary();
   // Wikimedia is always available (no API key needed); include it whenever
@@ -251,11 +271,15 @@ router.post("/match-imagery", async (req, res) => {
   const wantWikimedia =
     providers.includes("wikimedia") || (!wantGoogle && !wantMapillary);
 
-  // Real mode: respect a small concurrency limit
-  for (let i = 0; i < sampled.length; i++) {
-    const { point, originalIndex } = sampled[i]!;
+  // Probe one sampled point across every requested provider.
+  const probe = async (s: {
+    point: TrackPoint;
+    originalIndex: number;
+  }): Promise<Match[]> => {
+    const { point, originalIndex } = s;
     const next = points[originalIndex + 1] ?? point;
     const heading = bearingDegrees(point, next);
+    const out: Match[] = [];
     if (wantGoogle) {
       try {
         const g = await googleMetadata(point.lat, point.lon, radius);
@@ -264,7 +288,7 @@ router.post("/match-imagery", async (req, res) => {
             lat: g.location.lat,
             lon: g.location.lng,
           });
-          matches.push({
+          out.push({
             trackPointIndex: originalIndex,
             provider: "google",
             distanceM,
@@ -286,7 +310,7 @@ router.post("/match-imagery", async (req, res) => {
         const m = await mapillaryNearby(point.lat, point.lon, radius);
         if (m) {
           const distanceM = haversineMeters(point, { lat: m.lat, lon: m.lon });
-          matches.push({
+          out.push({
             trackPointIndex: originalIndex,
             provider: "mapillary",
             distanceM,
@@ -308,7 +332,7 @@ router.post("/match-imagery", async (req, res) => {
         const w = await wikimediaNearby(point.lat, point.lon, radius);
         if (w) {
           const distanceM = haversineMeters(point, { lat: w.lat, lon: w.lon });
-          matches.push({
+          out.push({
             trackPointIndex: originalIndex,
             provider: "wikimedia",
             distanceM,
@@ -324,6 +348,17 @@ router.post("/match-imagery", async (req, res) => {
         req.log.warn({ err }, "wikimedia fetch failed");
       }
     }
+    return out;
+  };
+
+  // Run probes with bounded concurrency so long tracks don't serialize into
+  // dozens of sequential round-trips (architect-flagged latency).
+  const CONCURRENCY = 6;
+  const matches: Match[] = [];
+  for (let i = 0; i < sampled.length; i += CONCURRENCY) {
+    const batch = sampled.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(batch.map((s) => probe(s!)));
+    for (const r of results) matches.push(...r);
   }
   // Keep photos near the track: measure the true distance from each photo's
   // location to the track polyline (not just to the sampled query point) and
@@ -345,7 +380,18 @@ router.post("/match-imagery", async (req, res) => {
     m.confidence = confidenceForDistance(d);
     return true;
   });
-  const data = MatchImageryResponse.parse({ mode: "real", matches: intersecting });
+  // The same panorama/photo is often the nearest to several adjacent sample
+  // points; collapse those duplicates, keeping the closest instance of each.
+  const deduped = new Map<string, Match>();
+  for (const m of intersecting) {
+    const key = `${m.provider}:${m.panoId ?? m.imageId}`;
+    const prev = deduped.get(key);
+    if (!prev || m.distanceM < prev.distanceM) deduped.set(key, m);
+  }
+  const data = MatchImageryResponse.parse({
+    mode: "real",
+    matches: [...deduped.values()],
+  });
   res.json(data);
 });
 
