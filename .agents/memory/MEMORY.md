@@ -2,3 +2,4 @@
 - [esbuild externalizes @google/*](esbuild-google-genai-external.md) — server artifact using Gemini must add @google/genai as its OWN direct dep or it ERR_MODULE_NOT_FOUND at runtime.
 - [Orval inline 200 responses](orval-inline-response.md) — define new endpoint success responses inline, not as named components, to avoid codegen name collisions.
 - [Overpass needs a User-Agent](overpass-user-agent.md) — Node fetch w/o UA → HTTP 406 + empty features; also nearest-barrier on long tracks needs a per-point probe, not the 20km centroid fetch.
+- [Adding a real track](adding-real-track.md) — register CSV in 4 spots (data/ file, CATALOGS, listRealStudies branch, species.ts); missing the listRealStudies branch = data loads but invisible in UI.

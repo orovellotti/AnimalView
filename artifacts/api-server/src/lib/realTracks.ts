@@ -34,6 +34,10 @@ const CATALOGS: Record<string, { name: string; file: string }> = {
     name: "Slavc Dispersal (approx.)",
     file: "slavc_dispersal.csv",
   },
+  "alcotra-lemed-ibex": {
+    name: "ALCOTRA LEMED-IBEX — Capra ibex (Western Alps)",
+    file: "alexandre_pne_ibex.csv",
+  },
 };
 
 let loadedCatalogs: Map<string, Catalog> | null = null;
@@ -129,21 +133,33 @@ export function listRealStudies(species: string): {
   principalInvestigator?: string;
   location?: string;
 }[] {
-  if (species !== "wolf") return [];
-  return [
-    {
-      id: "slavc-dispersal",
-      name: "Slavc Dispersal (approx.)",
-      principalInvestigator: "SLOWOLF / LIFE WOLFALPS (reconstructed)",
-      location: "Slovenia → Lessinia, Italian Alps",
-    },
-    {
-      id: "boutin-alberta-wolf",
-      name: "Boutin Alberta Grey Wolf",
-      principalInvestigator: "Stan Boutin (U. Alberta)",
-      location: "Northeastern Alberta, Canada",
-    },
-  ];
+  if (species === "wolf") {
+    return [
+      {
+        id: "slavc-dispersal",
+        name: "Slavc Dispersal (approx.)",
+        principalInvestigator: "SLOWOLF / LIFE WOLFALPS (reconstructed)",
+        location: "Slovenia → Lessinia, Italian Alps",
+      },
+      {
+        id: "boutin-alberta-wolf",
+        name: "Boutin Alberta Grey Wolf",
+        principalInvestigator: "Stan Boutin (U. Alberta)",
+        location: "Northeastern Alberta, Canada",
+      },
+    ];
+  }
+  if (species === "ibex") {
+    return [
+      {
+        id: "alcotra-lemed-ibex",
+        name: "ALCOTRA LEMED-IBEX — Capra ibex",
+        principalInvestigator: "Parc national des Écrins (project ALCOTRA LEMED-IBEX)",
+        location: "Western Alps, France",
+      },
+    ];
+  }
+  return [];
 }
 
 export function listRealIndividuals(

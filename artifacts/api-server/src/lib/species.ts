@@ -17,4 +17,10 @@ export const SPECIES = [
     scientificName: "Canis lupus",
     habitat: "Boreal forest & alpine, North America & Europe",
   },
+  {
+    id: "ibex",
+    commonName: "Alpine Ibex",
+    scientificName: "Capra ibex",
+    habitat: "High-altitude rocky slopes, European Alps",
+  },
 ];
