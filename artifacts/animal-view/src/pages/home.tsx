@@ -330,6 +330,10 @@ export default function Home() {
           providers: ["google", "mapillary", "wikimedia"],
         },
       });
+      // New result set: drop any stale selection and re-arm auto-follow so the
+      // stepper indexes into the fresh matches by live object reference.
+      manualPhotoRef.current = false;
+      setActiveMatch(null);
       setImageryMatches(res.matches || []);
     } catch (e) {
       console.error("Imagery error:", e);
@@ -341,6 +345,7 @@ export default function Home() {
   const didAutoImageryRef = useRef(false);
   useEffect(() => {
     didAutoImageryRef.current = false;
+    manualPhotoRef.current = false;
     setImageryMatches([]);
     matchImageryMutation.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -617,7 +622,10 @@ export default function Home() {
 
   const currentPhotoIndex = useMemo(() => {
     if (!activeMatch) return -1;
-    return orderedMatches.findIndex((o) => o.match.imageId === activeMatch.imageId);
+    // Match by object reference: imageId is undefined for some providers
+    // (e.g. Street View), so comparing imageId would collapse all of them
+    // onto the first entry and freeze the stepper.
+    return orderedMatches.findIndex((o) => o.match === activeMatch);
   }, [orderedMatches, activeMatch]);
 
   const goToPhoto = (idx: number) => {
@@ -1152,7 +1160,7 @@ export default function Home() {
                       className={`w-2 h-2 rounded-full ${
                         match.provider === "google" ? "bg-blue-500" : "bg-green-500"
                       } ${
-                        activeMatch?.imageId === match.imageId
+                        activeMatch === match
                           ? "ring-4 ring-primary/50 bg-primary shadow-[0_0_15px_rgba(234,179,8,0.8)]"
                           : "opacity-40"
                       }`}
