@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
-import { Play, Pause, Info, Crosshair, Sparkles } from "lucide-react";
+import { Play, Pause, Info, Crosshair, Sparkles, ChevronLeft, ChevronRight, Camera } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -426,6 +426,44 @@ export default function Home() {
     }
     setActiveMatch(closest);
   }, [mode, currentPoint, imageryMatches, radius]);
+
+  // --- Photo stepper: candidate images ordered along the track ---
+  // Each match is anchored to its nearest track point so we can step through
+  // them chronologically and move the playhead to that moment.
+  const orderedMatches = useMemo(() => {
+    if (mode !== "real" || !activePoints || imageryMatches.length === 0) return [];
+    const withIdx = imageryMatches
+      .filter((m) => m.imageLon != null && m.imageLat != null)
+      .map((m) => {
+        const mp = turf.point([m.imageLon, m.imageLat]);
+        let bestI = 0;
+        let bestD = Infinity;
+        for (let i = 0; i < activePoints.length; i++) {
+          const p = activePoints[i];
+          const d = turf.distance(mp, turf.point([p.lon, p.lat]), { units: "meters" });
+          if (d < bestD) {
+            bestD = d;
+            bestI = i;
+          }
+        }
+        return { match: m, pointIndex: bestI };
+      });
+    withIdx.sort((a, b) => a.pointIndex - b.pointIndex);
+    return withIdx;
+  }, [mode, activePoints, imageryMatches]);
+
+  const currentPhotoIndex = useMemo(() => {
+    if (!activeMatch) return -1;
+    return orderedMatches.findIndex((o) => o.match.imageId === activeMatch.imageId);
+  }, [orderedMatches, activeMatch]);
+
+  const goToPhoto = (idx: number) => {
+    if (idx < 0 || idx >= orderedMatches.length) return;
+    const target = orderedMatches[idx];
+    setIsPlaying(false);
+    setCurrentTimeIndex(target.pointIndex);
+    setActiveMatch(target.match);
+  };
 
   // Reset playback when switching modes
   useEffect(() => {
@@ -1150,8 +1188,52 @@ export default function Home() {
                     width: `${activePoints?.length ? (currentTimeIndex / activePoints.length) * 100 : 0}%`,
                   }}
                 />
+                {orderedMatches.map((o, i) => (
+                  <button
+                    key={o.match.imageId ?? i}
+                    title={`Photo ${i + 1}`}
+                    onClick={() => goToPhoto(i)}
+                    className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full transition-colors ${
+                      i === currentPhotoIndex
+                        ? "bg-primary ring-2 ring-primary/40"
+                        : "bg-muted-foreground/60 hover:bg-primary/70"
+                    }`}
+                    style={{
+                      left: `${activePoints?.length ? (o.pointIndex / activePoints.length) * 100 : 0}%`,
+                    }}
+                  />
+                ))}
               </div>
             </div>
+
+            {mode === "real" && orderedMatches.length > 0 && (
+              <div className="flex items-center gap-1.5 border-l border-border pl-4">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 rounded-full"
+                  disabled={currentPhotoIndex <= 0}
+                  onClick={() => goToPhoto((currentPhotoIndex < 0 ? 1 : currentPhotoIndex) - 1)}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <div className="flex flex-col items-center min-w-[52px]">
+                  <Camera className="w-3 h-3 text-muted-foreground mb-0.5" />
+                  <span className="text-[10px] font-mono text-primary tabular-nums">
+                    {currentPhotoIndex >= 0 ? currentPhotoIndex + 1 : "–"}/{orderedMatches.length}
+                  </span>
+                </div>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 rounded-full"
+                  disabled={currentPhotoIndex >= orderedMatches.length - 1}
+                  onClick={() => goToPhoto(currentPhotoIndex < 0 ? 0 : currentPhotoIndex + 1)}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
           </Card>
         </div>
       </div>
