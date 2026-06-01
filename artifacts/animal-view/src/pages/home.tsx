@@ -40,6 +40,7 @@ import {
   ChevronRight,
   Camera,
   Sun,
+  Moon,
   Cloud,
   CloudSun,
   CloudRain,
@@ -134,6 +135,17 @@ export default function Home() {
 
   const [basemap, setBasemap] = useState<"dark" | "satellite">("satellite");
   const mapRef = useRef<MapRef | null>(null);
+
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem("animalview-theme");
+      if (saved === "light" || saved === "dark") return saved;
+    }
+    return "dark";
+  });
+  useEffect(() => {
+    window.localStorage.setItem("animalview-theme", theme);
+  }, [theme]);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -667,7 +679,7 @@ export default function Home() {
   }, [basemap]);
 
   return (
-    <div className="relative flex h-screen w-full bg-background overflow-hidden dark text-foreground">
+    <div className={`relative flex h-screen w-full bg-background overflow-hidden text-foreground ${theme === "dark" ? "dark" : ""}`}>
       {/* Floating reopen button when sidebar is collapsed */}
       {!sidebarOpen && (
         <button
@@ -741,7 +753,7 @@ export default function Home() {
                   <SelectTrigger className="bg-background/50 border-border font-mono text-sm">
                     <SelectValue placeholder="Select species..." />
                   </SelectTrigger>
-                  <SelectContent className="dark">
+                  <SelectContent className={theme === "dark" ? "dark" : ""}>
                     {speciesReq.data?.species?.map((s) => (
                       <SelectItem key={s.id} value={s.id} className="font-mono text-sm">
                         {s.commonName}
@@ -768,7 +780,7 @@ export default function Home() {
                   <SelectTrigger className="bg-background/50 border-border font-mono text-sm">
                     <SelectValue placeholder="Select study..." />
                   </SelectTrigger>
-                  <SelectContent className="dark">
+                  <SelectContent className={theme === "dark" ? "dark" : ""}>
                     {studiesReq.data?.studies?.map((s) => (
                       <SelectItem key={s.id} value={s.id} className="font-mono text-sm">
                         {s.name}
@@ -794,7 +806,7 @@ export default function Home() {
                   <SelectTrigger className="bg-background/50 border-border font-mono text-sm">
                     <SelectValue placeholder="Select individual..." />
                   </SelectTrigger>
-                  <SelectContent className="dark">
+                  <SelectContent className={theme === "dark" ? "dark" : ""}>
                     {individualsReq.data?.individuals?.map((s) => (
                       <SelectItem key={s.id} value={s.id} className="font-mono text-sm">
                         {s.name} {s.nickname ? `"${s.nickname}"` : ""}
@@ -866,7 +878,7 @@ export default function Home() {
                   <SelectTrigger className="bg-background/50 border-border font-mono text-sm">
                     <SelectValue placeholder="Select species..." />
                   </SelectTrigger>
-                  <SelectContent className="dark">
+                  <SelectContent className={theme === "dark" ? "dark" : ""}>
                     {simSpeciesReq.data?.species?.map((s) => (
                       <SelectItem key={s.id} value={s.id} className="font-mono text-sm">
                         {s.commonName}
@@ -976,7 +988,7 @@ export default function Home() {
                       <span>{simResult.individualId}</span>
                     </div>
                     {simResult.warnings.map((w, i) => (
-                      <p key={i} className="text-amber-400/70 pt-1">⚠ {w}</p>
+                      <p key={i} className="text-amber-600/90 dark:text-amber-400/70 pt-1">⚠ {w}</p>
                     ))}
                   </div>
                 )}
@@ -988,7 +1000,7 @@ export default function Home() {
         <div className="p-6 border-t border-border text-[10px] text-muted-foreground/60 leading-relaxed font-mono">
           {mode === "sim" ? (
             <p>
-              These are <span className="text-amber-400/90">simulated plausible movements</span>, not observed animal locations. Generated via biased random walk over a habitat gradient and live OpenStreetMap barriers.
+              These are <span className="text-amber-700 dark:text-amber-400/90">simulated plausible movements</span>, not observed animal locations. Generated via biased random walk over a habitat gradient and live OpenStreetMap barriers.
             </p>
           ) : (
             <p>
@@ -1170,7 +1182,7 @@ export default function Home() {
                   About
                 </button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogContent className={`max-w-2xl max-h-[80vh] overflow-y-auto ${theme === "dark" ? "dark" : ""}`}>
                 <DialogHeader>
                   <DialogTitle className="font-mono uppercase tracking-widest text-primary">
                     TaxonPath — Simulation Method
@@ -1214,9 +1226,9 @@ export default function Home() {
                     </h3>
                     <p>
                       For each run we query the live Overpass API around the start point and
-                      pull three feature classes: <span className="text-red-400">major roads</span>,{" "}
-                      <span className="text-blue-400">rivers & water bodies</span>, and{" "}
-                      <span className="text-amber-400">urban / built-up land use</span>. Results
+                      pull three feature classes: <span className="text-red-600 dark:text-red-400">major roads</span>,{" "}
+                      <span className="text-blue-600 dark:text-blue-400">rivers & water bodies</span>, and{" "}
+                      <span className="text-amber-700 dark:text-amber-400">urban / built-up land use</span>. Results
                       are cached 30 min in memory. Each candidate step is penalized by proximity
                       to nearby barriers, weighted by the species' sensitivity.
                     </p>
@@ -1256,7 +1268,7 @@ export default function Home() {
                   </div>
 
                   <div className="pt-2 border-t border-border">
-                    <h3 className="text-amber-300 text-xs uppercase tracking-widest mb-2">
+                    <h3 className="text-amber-700 dark:text-amber-300 text-xs uppercase tracking-widest mb-2">
                       Limits & honest caveats
                     </h3>
                     <ul className="list-disc list-inside space-y-1 text-xs">
@@ -1275,22 +1287,36 @@ export default function Home() {
           </div>
         )}
 
-        {/* Basemap toggle */}
-        <div className="absolute top-4 right-4 flex bg-background/85 backdrop-blur-md border border-border rounded-sm overflow-hidden shadow-lg">
-          {(["dark", "satellite"] as const).map((b) => (
-            <button
-              key={b}
-              type="button"
-              onClick={() => setBasemap(b)}
-              className={`px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest transition-colors ${
-                basemap === b
-                  ? "bg-primary/20 text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {b}
-            </button>
-          ))}
+        {/* Top-right controls: theme + basemap */}
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            title={theme === "dark" ? "Passer en mode clair" : "Passer en mode sombre"}
+            className="flex items-center justify-center h-[31px] w-[31px] bg-background/85 backdrop-blur-md border border-border rounded-sm text-muted-foreground hover:text-primary transition-colors shadow-lg"
+          >
+            {theme === "dark" ? (
+              <Sun className="w-3.5 h-3.5" />
+            ) : (
+              <Moon className="w-3.5 h-3.5" />
+            )}
+          </button>
+          <div className="flex bg-background/85 backdrop-blur-md border border-border rounded-sm overflow-hidden shadow-lg">
+            {(["dark", "satellite"] as const).map((b) => (
+              <button
+                key={b}
+                type="button"
+                onClick={() => setBasemap(b)}
+                className={`px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest transition-colors ${
+                  basemap === b
+                    ? "bg-primary/20 text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {b}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Placement hint */}
@@ -1465,7 +1491,7 @@ export default function Home() {
                 <div className="space-y-3">
                   <div className="flex justify-between border-b border-border/50 pb-2">
                     <span className="uppercase tracking-widest text-muted-foreground">Barrier risk</span>
-                    <span className="text-red-300">{(currentPoint.barrierRisk ?? 0).toFixed(2)}</span>
+                    <span className="text-red-600 dark:text-red-300">{(currentPoint.barrierRisk ?? 0).toFixed(2)}</span>
                   </div>
                   <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                     <div
@@ -1617,8 +1643,8 @@ export default function Home() {
                   return (
                     <div className="p-4 bg-muted/30 border border-border/50 rounded-sm mt-6">
                       <div className="flex items-center gap-2 mb-3">
-                        <BarrierIcon className="w-3.5 h-3.5 text-red-300" />
-                        <span className="text-[9px] font-mono uppercase tracking-widest text-red-300">
+                        <BarrierIcon className="w-3.5 h-3.5 text-red-600 dark:text-red-300" />
+                        <span className="text-[9px] font-mono uppercase tracking-widest text-red-600 dark:text-red-300">
                           Rupture de continuité
                         </span>
                       </div>
@@ -1646,7 +1672,7 @@ export default function Home() {
                         <div className="flex justify-between border-b border-border/50 pb-2">
                           <span className="uppercase tracking-widest text-muted-foreground">Distance</span>
                           <span
-                            className={nearestBarrier.distanceM < 200 ? "text-red-300" : ""}
+                            className={nearestBarrier.distanceM < 200 ? "text-red-600 dark:text-red-300" : ""}
                           >
                             {nearestBarrier.distanceM < 1000
                               ? `${Math.round(nearestBarrier.distanceM)} m`

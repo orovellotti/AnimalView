@@ -67,61 +67,62 @@
 }
 
 :root {
-  --button-outline: rgba(255,255,255, .10);
-  --badge-outline: rgba(255,255,255, .05);
+  /* Light theme — warm paper, daylight field-guide feel */
+  --button-outline: rgba(0,0,0, .10);
+  --badge-outline: rgba(0,0,0, .05);
 
   --opaque-button-border-intensity: 9;
 
-  --elevate-1: rgba(255,255,255, .04);
-  --elevate-2: rgba(255,255,255, .09);
+  --elevate-1: rgba(0,0,0, .04);
+  --elevate-2: rgba(0,0,0, .09);
 
-  /* Deep charcoal background */
-  --background: 220 15% 7%;
-  --foreground: 210 20% 85%;
+  /* Warm paper background */
+  --background: 40 30% 97%;
+  --foreground: 220 20% 14%;
 
-  --border: 220 15% 15%;
+  --border: 220 14% 85%;
 
-  --card: 220 15% 10%;
-  --card-foreground: 210 20% 85%;
-  --card-border: 220 15% 18%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 20% 14%;
+  --card-border: 220 14% 88%;
 
-  --sidebar: 220 15% 9%;
-  --sidebar-foreground: 210 20% 80%;
-  --sidebar-border: 220 15% 15%;
-  --sidebar-primary: 40 90% 55%;
-  --sidebar-primary-foreground: 220 15% 10%;
-  --sidebar-accent: 220 15% 14%;
-  --sidebar-accent-foreground: 210 20% 90%;
-  --sidebar-ring: 40 90% 55%;
+  --sidebar: 40 25% 98%;
+  --sidebar-foreground: 220 18% 22%;
+  --sidebar-border: 220 14% 87%;
+  --sidebar-primary: 32 95% 44%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 220 14% 92%;
+  --sidebar-accent-foreground: 220 18% 18%;
+  --sidebar-ring: 32 95% 44%;
 
-  --popover: 220 15% 9%;
-  --popover-foreground: 210 20% 85%;
-  --popover-border: 220 15% 18%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 20% 14%;
+  --popover-border: 220 14% 88%;
 
-  /* Glowing Amber */
-  --primary: 40 90% 55%;
-  --primary-foreground: 220 15% 10%;
+  /* Amber (darkened for contrast on light backgrounds) */
+  --primary: 32 95% 44%;
+  --primary-foreground: 0 0% 100%;
 
-  --secondary: 220 15% 18%;
-  --secondary-foreground: 210 20% 90%;
+  --secondary: 220 14% 91%;
+  --secondary-foreground: 220 18% 18%;
 
-  --muted: 220 15% 14%;
-  --muted-foreground: 210 15% 60%;
+  --muted: 220 16% 93%;
+  --muted-foreground: 220 10% 40%;
 
-  --accent: 220 15% 20%;
-  --accent-foreground: 210 20% 90%;
+  --accent: 220 14% 90%;
+  --accent-foreground: 220 18% 18%;
 
-  --destructive: 0 70% 50%;
-  --destructive-foreground: 210 20% 90%;
+  --destructive: 0 72% 47%;
+  --destructive-foreground: 0 0% 100%;
 
-  --input: 220 15% 15%;
-  --ring: 40 90% 55%;
+  --input: 220 14% 86%;
+  --ring: 32 95% 44%;
 
-  --chart-1: 40 90% 55%;
-  --chart-2: 190 80% 50%;
-  --chart-3: 140 70% 50%;
-  --chart-4: 280 60% 50%;
-  --chart-5: 350 70% 50%;
+  --chart-1: 32 95% 44%;
+  --chart-2: 190 80% 40%;
+  --chart-3: 140 60% 38%;
+  --chart-4: 280 55% 48%;
+  --chart-5: 350 70% 48%;
 
   --app-font-sans: 'Inter', sans-serif;
   --app-font-serif: Georgia, serif;
@@ -130,7 +131,13 @@
 }
 
 .dark {
-  /* Using same tokens for dark and light since this is a strictly dark cinematic UI */
+  /* Dark theme — the original cinematic charcoal + glowing amber */
+  --button-outline: rgba(255,255,255, .10);
+  --badge-outline: rgba(255,255,255, .05);
+
+  --elevate-1: rgba(255,255,255, .04);
+  --elevate-2: rgba(255,255,255, .09);
+
   --background: 220 15% 7%;
   --foreground: 210 20% 85%;
   --border: 220 15% 15%;
@@ -160,6 +167,12 @@
   --destructive-foreground: 210 20% 90%;
   --input: 220 15% 15%;
   --ring: 40 90% 55%;
+
+  --chart-1: 40 90% 55%;
+  --chart-2: 190 80% 50%;
+  --chart-3: 140 70% 50%;
+  --chart-4: 280 60% 50%;
+  --chart-5: 350 70% 50%;
 }
 
 @layer base {
