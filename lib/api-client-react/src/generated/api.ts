@@ -20,6 +20,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AnalyzeImagery200,
+  AnalyzeImageryRequest,
   GetHumanPressureParams,
   GetProviders200,
   GetTrackParams,
@@ -525,6 +527,77 @@ export const useMatchImagery = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getMatchImageryMutationOptions(options));
+    }
+
+export const getAnalyzeImageryUrl = () => {
+
+
+
+
+  return `/api/analyze-imagery`
+}
+
+/**
+ * @summary Interpret a context photo from the species' perspective (AI narrative)
+ */
+export const analyzeImagery = async (analyzeImageryRequest: AnalyzeImageryRequest, options?: RequestInit): Promise<AnalyzeImagery200> => {
+
+  return customFetch<AnalyzeImagery200>(getAnalyzeImageryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      analyzeImageryRequest,)
+  }
+);}
+
+
+
+
+export const getAnalyzeImageryMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeImagery>>, TError,{data: BodyType<AnalyzeImageryRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof analyzeImagery>>, TError,{data: BodyType<AnalyzeImageryRequest>}, TContext> => {
+
+const mutationKey = ['analyzeImagery'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof analyzeImagery>>, {data: BodyType<AnalyzeImageryRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  analyzeImagery(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnalyzeImageryMutationResult = NonNullable<Awaited<ReturnType<typeof analyzeImagery>>>
+    export type AnalyzeImageryMutationBody = BodyType<AnalyzeImageryRequest>
+    export type AnalyzeImageryMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Interpret a context photo from the species' perspective (AI narrative)
+ */
+export const useAnalyzeImagery = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeImagery>>, TError,{data: BodyType<AnalyzeImageryRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof analyzeImagery>>,
+        TError,
+        {data: BodyType<AnalyzeImageryRequest>},
+        TContext
+      > => {
+      return useMutation(getAnalyzeImageryMutationOptions(options));
     }
 
 export const getGetProvidersUrl = () => {

@@ -67,6 +67,23 @@ export interface ImageryMatch {
   previewUrl?: string;
 }
 
+export interface AnalyzeImageryRequest {
+  /**
+     * Common name of the species (e.g. "Grey Wolf")
+     * @minLength 1
+     */
+  species: string;
+  scientificName?: string;
+  habitat?: string;
+  /** google | mapillary | wikimedia */
+  provider: string;
+  panoId?: string;
+  heading?: number;
+  /** Preview image URL for non-google providers */
+  imageUrl?: string;
+  distanceM?: number;
+}
+
 export interface SimSpeciesProfile {
   id: string;
   commonName: string;
@@ -174,6 +191,11 @@ export type MatchImagery200 = {
   /** real */
   mode: string;
   matches: ImageryMatch[];
+};
+
+export type AnalyzeImagery200 = {
+  narrative: string;
+  species: string;
 };
 
 export type GetProviders200 = {

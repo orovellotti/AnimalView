@@ -3,7 +3,9 @@ import {
   MatchImageryBody,
   MatchImageryResponse,
   GetProvidersResponse,
+  AnalyzeImageryBody,
 } from "@workspace/api-zod";
+import { ai } from "@workspace/integrations-gemini-ai";
 import {
   haversineMeters,
   bearingDegrees,
@@ -369,6 +371,116 @@ router.get("/streetview-image", async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "streetview proxy failed");
     res.status(502).json({ error: "streetview unavailable" });
+  }
+});
+
+// Hosts we allow the server to fetch context images from. Prevents the
+// analyze route from being used as an open SSRF proxy to arbitrary URLs.
+const ALLOWED_IMAGE_HOSTS = [
+  "upload.wikimedia.org",
+  "commons.wikimedia.org",
+  "maps.googleapis.com",
+];
+function isAllowedImageHost(rawUrl: string): boolean {
+  try {
+    const u = new URL(rawUrl);
+    if (u.protocol !== "https:") return false;
+    return ALLOWED_IMAGE_HOSTS.some(
+      (h) => u.hostname === h || u.hostname.endsWith(".mapillary.com"),
+    );
+  } catch {
+    return false;
+  }
+}
+
+const narrativeCache = new Map<string, string>();
+
+router.post("/analyze-imagery", async (req, res) => {
+  const parsed = AnalyzeImageryBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid request body" });
+    return;
+  }
+  const { species, scientificName, habitat, provider, panoId, heading, imageUrl, distanceM } =
+    parsed.data;
+
+  // Resolve the image source. For Google we build the (key-bearing) Street View
+  // URL server-side; for other providers we accept a preview URL but only from
+  // an allowlisted host.
+  let fetchUrl: string | null = null;
+  if (provider === "google" && panoId) {
+    const key = process.env["GOOGLE_MAPS_API_KEY"];
+    if (key) {
+      fetchUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x360&pano=${encodeURIComponent(
+        panoId,
+      )}&heading=${encodeURIComponent(String(Math.round(heading ?? 0)))}&fov=90&key=${key}`;
+    }
+  } else if (imageUrl && isAllowedImageHost(imageUrl)) {
+    fetchUrl = imageUrl;
+  }
+  if (!fetchUrl) {
+    res.status(400).json({ error: "no analyzable image for this match" });
+    return;
+  }
+
+  const cacheKey = [
+    species,
+    scientificName ?? "",
+    habitat ?? "",
+    provider,
+    panoId ?? imageUrl,
+    Math.round(heading ?? 0),
+    distanceM != null ? Math.round(distanceM) : "",
+  ].join("|");
+  const cached = narrativeCache.get(cacheKey);
+  if (cached) {
+    res.json({ narrative: cached, species });
+    return;
+  }
+
+  try {
+    const imgRes = await fetch(fetchUrl, { redirect: "error" });
+    if (!imgRes.ok) {
+      req.log.warn({ status: imgRes.status }, "analyze image fetch failed");
+      res.status(502).json({ error: "could not load image" });
+      return;
+    }
+    const mimeType = imgRes.headers.get("content-type") ?? "image/jpeg";
+    const base64 = Buffer.from(await imgRes.arrayBuffer()).toString("base64");
+
+    const sci = scientificName ? ` (${scientificName})` : "";
+    const hab = habitat ? ` Its typical habitat: ${habitat}.` : "";
+    const dist = distanceM != null ? ` This place sits about ${Math.round(distanceM)} meters from the animal's recorded path.` : "";
+    const prompt = `You are a wild ${species}${sci}, a real animal moving through this exact landscape.${hab}${dist}
+
+Look closely at this photograph of the terrain. Describe this place from your own senses and instincts, in the first person ("I"). Ground every observation in what is actually visible in the image — terrain, vegetation, cover, water, open ground, roads, vehicles, buildings, or signs of humans. Read the scene as survival: where is shelter, where might prey or food be, where is danger, and what do you do next.
+
+Write 2 to 4 short sentences, present tense, vivid but restrained. Do not invent things that are not in the image. Do not mention cameras, photos, GPS, or that you are an AI. End with the instinctive decision you make here.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { inlineData: { mimeType, data: base64 } },
+            { text: prompt },
+          ],
+        },
+      ],
+      config: { maxOutputTokens: 8192 },
+    });
+
+    const narrative = (response.text ?? "").trim();
+    if (!narrative) {
+      res.status(502).json({ error: "no narrative generated" });
+      return;
+    }
+    narrativeCache.set(cacheKey, narrative);
+    res.json({ narrative, species });
+  } catch (err) {
+    req.log.error({ err }, "analyze-imagery failed");
+    res.status(502).json({ error: "analysis unavailable" });
   }
 });
 

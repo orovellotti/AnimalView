@@ -14,6 +14,7 @@ import {
   useGetTrack,
   getGetTrackQueryKey,
   useMatchImagery,
+  useAnalyzeImagery,
   useGetProviders,
   useListSimSpecies,
   getListSimSpeciesQueryKey,
@@ -94,6 +95,64 @@ export default function Home() {
   const matchImageryMutation = useMatchImagery();
   const [imageryMatches, setImageryMatches] = useState<any[]>([]);
   const [activeMatch, setActiveMatch] = useState<any | null>(null);
+
+  // --- "Through its eyes" AI narrative ---
+  const selectedSpecies = useMemo(
+    () => speciesReq.data?.species?.find((s) => s.id === speciesId),
+    [speciesReq.data, speciesId],
+  );
+  const analyzeImageryMutation = useAnalyzeImagery();
+  const [narrative, setNarrative] = useState<string | null>(null);
+  const [narrativeStatus, setNarrativeStatus] = useState<
+    "idle" | "loading" | "error"
+  >("idle");
+  const narrativeTokenRef = useRef(0);
+
+  useEffect(() => {
+    const token = ++narrativeTokenRef.current;
+    if (!activeMatch) {
+      setNarrative(null);
+      setNarrativeStatus("idle");
+      return;
+    }
+    const analyzable =
+      activeMatch.provider === "google"
+        ? !!activeMatch.panoId
+        : !!activeMatch.previewUrl;
+    if (!analyzable) {
+      setNarrative(null);
+      setNarrativeStatus("idle");
+      return;
+    }
+    setNarrative(null);
+    setNarrativeStatus("loading");
+    analyzeImageryMutation
+      .mutateAsync({
+        data: {
+          species: selectedSpecies?.commonName ?? "wild animal",
+          scientificName: selectedSpecies?.scientificName,
+          habitat: selectedSpecies?.habitat,
+          provider: activeMatch.provider,
+          panoId: activeMatch.panoId,
+          heading: activeMatch.heading,
+          imageUrl:
+            activeMatch.provider !== "google"
+              ? activeMatch.previewUrl
+              : undefined,
+          distanceM: activeMatch.distanceM,
+        },
+      })
+      .then((res) => {
+        if (token !== narrativeTokenRef.current) return;
+        setNarrative(res.narrative);
+        setNarrativeStatus("idle");
+      })
+      .catch(() => {
+        if (token !== narrativeTokenRef.current) return;
+        setNarrativeStatus("error");
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMatch, selectedSpecies]);
 
   // --- Simulation state ---
   const simSpeciesReq = useListSimSpecies({
@@ -1189,9 +1248,33 @@ export default function Home() {
                 )}
               </div>
 
-              <div className="p-4 bg-muted/30 border border-border/50 rounded-sm mt-8">
+              <div className="p-4 bg-primary/5 border border-primary/20 rounded-sm mt-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Sparkles className="w-3 h-3 text-primary" />
+                  <span className="text-[9px] font-mono uppercase tracking-widest text-primary">
+                    Through {selectedSpecies?.commonName ?? "its"} eyes
+                  </span>
+                </div>
+                {narrativeStatus === "loading" && (
+                  <p className="text-[11px] font-mono text-muted-foreground animate-pulse">
+                    Reading the scene…
+                  </p>
+                )}
+                {narrativeStatus === "error" && (
+                  <p className="text-[11px] font-mono text-muted-foreground">
+                    Could not interpret this scene.
+                  </p>
+                )}
+                {narrativeStatus === "idle" && narrative && (
+                  <p className="text-[12px] leading-relaxed text-foreground/90 italic">
+                    “{narrative}”
+                  </p>
+                )}
+              </div>
+
+              <div className="p-3 bg-muted/30 border border-border/50 rounded-sm mt-3">
                 <p className="text-[10px] font-mono leading-relaxed text-muted-foreground">
-                  Potential image near the track. This is nearby street-level imagery within {Math.round(activeMatch.distanceM)} meters, not the exact animal view.
+                  AI interpretation of nearby street-level imagery within {Math.round(activeMatch.distanceM)} meters of the track — an imagined reading of the terrain, not the exact animal view.
                 </p>
               </div>
             </div>

@@ -1,1 +1,3 @@
 - [AnimalView real-data-only policy](animalview-real-data-only.md) — never fabricate tracks/studies/imagery; track 404s when no real data; species.ts is real taxonomy not demo.
+- [esbuild externalizes @google/*](esbuild-google-genai-external.md) — server artifact using Gemini must add @google/genai as its OWN direct dep or it ERR_MODULE_NOT_FOUND at runtime.
+- [Orval inline 200 responses](orval-inline-response.md) — define new endpoint success responses inline, not as named components, to avoid codegen name collisions.

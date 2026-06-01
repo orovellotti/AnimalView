@@ -157,6 +157,30 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/ImageryMatch"
+  /analyze-imagery:
+    post:
+      operationId: analyzeImagery
+      tags: [imagery]
+      summary: Interpret a context photo from the species' perspective (AI narrative)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalyzeImageryRequest"
+      responses:
+        "200":
+          description: Narrative analysis
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [narrative, species]
+                properties:
+                  narrative:
+                    type: string
+                  species:
+                    type: string
   /providers:
     get:
       operationId: getProviders
@@ -344,6 +368,30 @@ components:
           description: "high | medium | low"
         previewUrl:
           type: string
+    AnalyzeImageryRequest:
+      type: object
+      required: [species, provider]
+      properties:
+        species:
+          type: string
+          description: Common name of the species (e.g. "Grey Wolf")
+          minLength: 1
+        scientificName:
+          type: string
+        habitat:
+          type: string
+        provider:
+          type: string
+          description: "google | mapillary | wikimedia"
+        panoId:
+          type: string
+        heading:
+          type: number
+        imageUrl:
+          type: string
+          description: Preview image URL for non-google providers
+        distanceM:
+          type: number
     SimSpeciesProfile:
       type: object
       required: [id, commonName, scientificName, summary, stepMeters, maxDailyKm, explorationLevel, barrierSensitivity]

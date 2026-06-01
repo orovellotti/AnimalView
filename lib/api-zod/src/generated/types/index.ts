@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './analyzeImagery200';
+export * from './analyzeImageryRequest';
 export * from './getHumanPressureParams';
 export * from './getProviders200';
 export * from './getTrackParams';

@@ -117,6 +117,29 @@ export const MatchImageryResponse = zod.object({
 
 
 /**
+ * @summary Interpret a context photo from the species' perspective (AI narrative)
+ */
+
+
+
+export const AnalyzeImageryBody = zod.object({
+  "species": zod.string().min(1).describe('Common name of the species (e.g. \"Grey Wolf\")'),
+  "scientificName": zod.string().optional(),
+  "habitat": zod.string().optional(),
+  "provider": zod.string().describe('google | mapillary | wikimedia'),
+  "panoId": zod.string().optional(),
+  "heading": zod.number().optional(),
+  "imageUrl": zod.string().optional().describe('Preview image URL for non-google providers'),
+  "distanceM": zod.number().optional()
+})
+
+export const AnalyzeImageryResponse = zod.object({
+  "narrative": zod.string(),
+  "species": zod.string()
+})
+
+
+/**
  * @summary Report which imagery providers are configured
  */
 export const GetProvidersResponse = zod.object({
