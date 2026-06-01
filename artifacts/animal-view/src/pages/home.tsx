@@ -1473,6 +1473,58 @@ export default function Home() {
                 )}
               </div>
 
+              {WeatherIcon && weather && (
+                <div className="p-4 bg-muted/30 border border-border/50 rounded-sm mt-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <WeatherIcon className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-[9px] font-mono uppercase tracking-widest text-primary">
+                      Météo au passage du {selectedSpecies?.commonName ?? "animal"}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-2 mb-3">
+                    <span className="text-2xl font-mono text-foreground tabular-nums">
+                      {weather.temperatureC != null ? `${Math.round(weather.temperatureC)}°C` : "—"}
+                    </span>
+                    <span className="text-[11px] font-mono text-muted-foreground">
+                      {weather.label}
+                    </span>
+                  </div>
+                  <div className="space-y-2 font-mono text-[11px] text-muted-foreground/80">
+                    {currentPoint?.timestamp && (
+                      <div className="flex justify-between border-b border-border/50 pb-2">
+                        <span className="uppercase tracking-widest text-muted-foreground">Date</span>
+                        <span>
+                          {new Date(currentPoint.timestamp).toLocaleString("fr-FR", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            timeZone: "UTC",
+                          })}{" "}
+                          UTC
+                        </span>
+                      </div>
+                    )}
+                    {weather.windSpeedKmh != null && (
+                      <div className="flex justify-between border-b border-border/50 pb-2">
+                        <span className="uppercase tracking-widest text-muted-foreground">Vent</span>
+                        <span>{Math.round(weather.windSpeedKmh)} km/h</span>
+                      </div>
+                    )}
+                    {weather.precipitationMm != null && (
+                      <div className="flex justify-between border-b border-border/50 pb-2">
+                        <span className="uppercase tracking-widest text-muted-foreground">Précipitations</span>
+                        <span>{weather.precipitationMm} mm</span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-[10px] font-mono leading-relaxed text-muted-foreground/60 mt-3">
+                    Données de réanalyse ERA5 (Open-Meteo) à l'heure et au lieu exacts du passage.
+                  </p>
+                </div>
+              )}
+
               <div className="p-4 bg-primary/5 border border-primary/20 rounded-sm mt-6">
                 <div className="flex items-center gap-2 mb-3">
                   <Sparkles className="w-3 h-3 text-primary" />
