@@ -36,6 +36,54 @@ export function confidenceForDistance(distM: number): "high" | "medium" | "low" 
   return "low";
 }
 
+function distancePointToSegmentMeters(
+  p: { x: number; y: number },
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  let t = 0;
+  if (lenSq > 0) {
+    t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+  }
+  const cx = a.x + t * dx;
+  const cy = a.y + t * dy;
+  return Math.hypot(p.x - cx, p.y - cy);
+}
+
+// Shortest distance (meters) from a point to a track polyline. Uses a local
+// equirectangular projection around the point, which is accurate at the scales
+// involved here. Returns Infinity for an empty track.
+export function distanceToTrackMeters(
+  p: { lat: number; lon: number },
+  track: { lat: number; lon: number }[],
+): number {
+  if (track.length === 0) return Infinity;
+  if (track.length === 1) return haversineMeters(p, track[0]!);
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const lat0 = toRad(p.lat);
+  const normLon = (dLon: number) => ((dLon + 540) % 360) - 180;
+  const proj = (q: { lat: number; lon: number }) => ({
+    x: R * toRad(normLon(q.lon - p.lon)) * Math.cos(lat0),
+    y: R * toRad(q.lat - p.lat),
+  });
+  const origin = { x: 0, y: 0 };
+  let min = Infinity;
+  for (let i = 0; i < track.length - 1; i++) {
+    const d = distancePointToSegmentMeters(
+      origin,
+      proj(track[i]!),
+      proj(track[i + 1]!),
+    );
+    if (d < min) min = d;
+  }
+  return min;
+}
+
 export function downsampleByDistance<
   T extends { lat: number; lon: number },
 >(points: T[], minMeters: number): { point: T; originalIndex: number }[] {

@@ -9,6 +9,7 @@ import {
   bearingDegrees,
   confidenceForDistance,
   downsampleByDistance,
+  distanceToTrackMeters,
 } from "../lib/geo";
 import {
   hasGoogle,
@@ -314,7 +315,24 @@ router.post("/match-imagery", async (req, res) => {
       }
     }
   }
-  const data = MatchImageryResponse.parse({ mode: "real", matches });
+  // Keep only photos that genuinely intersect the track: measure the true
+  // distance from each photo's location to the track polyline (not just to the
+  // sampled query point) and drop anything farther than the intersection
+  // threshold. Also recompute distance/confidence from this true distance.
+  const INTERSECTION_THRESHOLD_M = 50;
+  const track = points as TrackPoint[];
+  const intersecting = matches.filter((m) => {
+    if (m.imageLat == null || m.imageLon == null) return false;
+    const d = distanceToTrackMeters(
+      { lat: m.imageLat, lon: m.imageLon },
+      track,
+    );
+    if (d > INTERSECTION_THRESHOLD_M) return false;
+    m.distanceM = d;
+    m.confidence = confidenceForDistance(d);
+    return true;
+  });
+  const data = MatchImageryResponse.parse({ mode: "real", matches: intersecting });
   res.json(data);
 });
 
