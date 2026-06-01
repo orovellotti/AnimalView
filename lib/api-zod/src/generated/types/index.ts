@@ -11,6 +11,8 @@ export * from './analyzeImageryRequest';
 export * from './getHumanPressureParams';
 export * from './getProviders200';
 export * from './getTrackParams';
+export * from './getWeather200';
+export * from './getWeatherParams';
 export * from './healthStatus';
 export * from './humanPressureResult';
 export * from './humanPressureResultCenter';

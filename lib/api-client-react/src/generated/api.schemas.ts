@@ -187,6 +187,27 @@ from?: string;
 to?: string;
 };
 
+export type GetWeatherParams = {
+lat: number;
+lon: number;
+/**
+ * ISO 8601 timestamp of the GPS fix
+ */
+timestamp: string;
+};
+
+export type GetWeather200 = {
+  /** ISO hour the observation corresponds to */
+  time: string;
+  temperatureC?: number | null;
+  windSpeedKmh?: number | null;
+  precipitationMm?: number | null;
+  /** WMO weather interpretation code */
+  weatherCode: number;
+  /** Human-readable weather description */
+  label: string;
+};
+
 export type MatchImagery200 = {
   /** real */
   mode: string;

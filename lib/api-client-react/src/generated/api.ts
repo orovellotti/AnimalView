@@ -25,6 +25,8 @@ import type {
   GetHumanPressureParams,
   GetProviders200,
   GetTrackParams,
+  GetWeather200,
+  GetWeatherParams,
   HealthStatus,
   HumanPressureResult,
   ListIndividuals200,
@@ -446,6 +448,90 @@ export function useGetTrack<TData = Awaited<ReturnType<typeof getTrack>>, TError
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetTrackQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetWeatherUrl = (params: GetWeatherParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/weather?${stringifiedParams}` : `/api/weather`
+}
+
+/**
+ * @summary Real historical weather at a location and time (Open-Meteo ERA5 archive)
+ */
+export const getWeather = async (params: GetWeatherParams, options?: RequestInit): Promise<GetWeather200> => {
+
+  return customFetch<GetWeather200>(getGetWeatherUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWeatherQueryKey = (params?: GetWeatherParams,) => {
+    return [
+    `/api/weather`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetWeatherQueryOptions = <TData = Awaited<ReturnType<typeof getWeather>>, TError = ErrorType<unknown>>(params: GetWeatherParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWeather>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWeatherQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWeather>>> = ({ signal }) => getWeather(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWeather>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWeatherQueryResult = NonNullable<Awaited<ReturnType<typeof getWeather>>>
+export type GetWeatherQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Real historical weather at a location and time (Open-Meteo ERA5 archive)
+ */
+
+export function useGetWeather<TData = Awaited<ReturnType<typeof getWeather>>, TError = ErrorType<unknown>>(
+ params: GetWeatherParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWeather>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWeatherQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

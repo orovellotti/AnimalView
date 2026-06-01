@@ -15,6 +15,8 @@ import {
   getGetTrackQueryKey,
   useMatchImagery,
   useAnalyzeImagery,
+  useGetWeather,
+  getGetWeatherQueryKey,
   useGetProviders,
   useListSimSpecies,
   getListSimSpeciesQueryKey,
@@ -28,7 +30,25 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
-import { Play, Pause, Info, Crosshair, Sparkles, ChevronLeft, ChevronRight, Camera } from "lucide-react";
+import {
+  Play,
+  Pause,
+  Info,
+  Crosshair,
+  Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  Camera,
+  Sun,
+  Cloud,
+  CloudSun,
+  CloudRain,
+  CloudSnow,
+  CloudFog,
+  CloudDrizzle,
+  CloudLightning,
+  type LucideIcon,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +56,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+
+function weatherIcon(code: number): LucideIcon {
+  if (code === 0) return Sun;
+  if (code === 1 || code === 2) return CloudSun;
+  if (code === 3) return Cloud;
+  if (code === 45 || code === 48) return CloudFog;
+  if (code >= 51 && code <= 57) return CloudDrizzle;
+  if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return CloudRain;
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return CloudSnow;
+  if (code >= 95) return CloudLightning;
+  return Cloud;
+}
 
 type Mode = "real" | "sim";
 
@@ -296,6 +328,36 @@ export default function Home() {
   }, [activePoints]);
 
   const currentPoint = activePoints?.[currentTimeIndex];
+
+  // Real historical weather at the current playhead moment. Coordinates are
+  // rounded (≈11km) and the time floored to the hour so the query key stays
+  // stable across nearby points during playback (cache-friendly, no spam).
+  const weatherParams = useMemo(() => {
+    if (mode !== "real" || !currentPoint) return null;
+    const d = new Date(currentPoint.timestamp);
+    if (Number.isNaN(d.getTime())) return null;
+    d.setUTCMinutes(0, 0, 0);
+    return {
+      lat: Number(currentPoint.lat.toFixed(1)),
+      lon: Number(currentPoint.lon.toFixed(1)),
+      timestamp: d.toISOString(),
+    };
+  }, [mode, currentPoint]);
+
+  const weatherReq = useGetWeather(
+    weatherParams ?? { lat: 0, lon: 0, timestamp: "" },
+    {
+      query: {
+        enabled: !!weatherParams,
+        staleTime: Infinity,
+        queryKey: getGetWeatherQueryKey(
+          weatherParams ?? { lat: 0, lon: 0, timestamp: "" },
+        ),
+      },
+    },
+  );
+  const weather = weatherParams ? weatherReq.data : undefined;
+  const WeatherIcon = weather ? weatherIcon(weather.weatherCode) : null;
 
   // Comet trail — the last few traversed points up to the current one, for a
   // fading tail effect behind the moving marker.
@@ -1263,6 +1325,27 @@ export default function Home() {
                 >
                   <ChevronRight className="w-4 h-4" />
                 </Button>
+              </div>
+            )}
+
+            {mode === "real" && WeatherIcon && weather && (
+              <div
+                className="flex items-center gap-2.5 border-l border-border pl-4"
+                title={`${weather.label}${
+                  weather.windSpeedKmh != null ? ` · wind ${Math.round(weather.windSpeedKmh)} km/h` : ""
+                }${
+                  weather.precipitationMm != null ? ` · precip ${weather.precipitationMm} mm` : ""
+                }`}
+              >
+                <WeatherIcon className="w-6 h-6 text-primary shrink-0" />
+                <div className="flex flex-col leading-tight">
+                  <span className="text-sm font-mono text-foreground tabular-nums">
+                    {weather.temperatureC != null ? `${Math.round(weather.temperatureC)}°C` : "—"}
+                  </span>
+                  <span className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground max-w-[80px] truncate">
+                    {weather.label}
+                  </span>
+                </div>
               </div>
             )}
           </Card>

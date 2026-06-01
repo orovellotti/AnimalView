@@ -86,6 +86,25 @@ export const GetTrackResponse = zod.object({
 
 
 /**
+ * @summary Real historical weather at a location and time (Open-Meteo ERA5 archive)
+ */
+export const GetWeatherQueryParams = zod.object({
+  "lat": zod.coerce.number(),
+  "lon": zod.coerce.number(),
+  "timestamp": zod.coerce.string().describe('ISO 8601 timestamp of the GPS fix')
+})
+
+export const GetWeatherResponse = zod.object({
+  "time": zod.string().describe('ISO hour the observation corresponds to'),
+  "temperatureC": zod.number().nullish(),
+  "windSpeedKmh": zod.number().nullish(),
+  "precipitationMm": zod.number().nullish(),
+  "weatherCode": zod.number().describe('WMO weather interpretation code'),
+  "label": zod.string().describe('Human-readable weather description')
+})
+
+
+/**
  * @summary Match street-level imagery to track points
  */
 export const MatchImageryBody = zod.object({
