@@ -515,7 +515,13 @@ components:
       properties:
         kind:
           type: string
-          description: "highway | water | urban"
+          description: "highway | railway | water | urban"
+        subtype:
+          type: string
+          description: "Raw OSM tag value, e.g. motorway, primary, rail, river, industrial"
+        name:
+          type: string
+          description: "OSM name when present, e.g. A2, Drava"
         lat:
           type: number
         lon:

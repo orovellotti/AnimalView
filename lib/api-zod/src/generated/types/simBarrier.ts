@@ -7,8 +7,12 @@
  */
 
 export interface SimBarrier {
-  /** highway | water | urban */
+  /** highway | railway | water | urban */
   kind: string;
+  /** Raw OSM tag value, e.g. motorway, primary, rail, river, industrial */
+  subtype?: string;
+  /** OSM name when present, e.g. A2, Drava */
+  name?: string;
   lat: number;
   lon: number;
 }

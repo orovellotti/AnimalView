@@ -203,7 +203,9 @@ export const GetHumanPressureResponse = zod.object({
 }),
   "radius": zod.number(),
   "features": zod.array(zod.object({
-  "kind": zod.string().describe('highway | water | urban'),
+  "kind": zod.string().describe('highway | railway | water | urban'),
+  "subtype": zod.string().optional().describe('Raw OSM tag value, e.g. motorway, primary, rail, river, industrial'),
+  "name": zod.string().optional().describe('OSM name when present, e.g. A2, Drava'),
   "lat": zod.number(),
   "lon": zod.number()
 }))
@@ -247,7 +249,9 @@ export const SimulateTrackResponse = zod.object({
   "barrierRisk": zod.number()
 })),
   "barriers": zod.array(zod.object({
-  "kind": zod.string().describe('highway | water | urban'),
+  "kind": zod.string().describe('highway | railway | water | urban'),
+  "subtype": zod.string().optional().describe('Raw OSM tag value, e.g. motorway, primary, rail, river, industrial'),
+  "name": zod.string().optional().describe('OSM name when present, e.g. A2, Drava'),
   "lat": zod.number(),
   "lon": zod.number()
 })),

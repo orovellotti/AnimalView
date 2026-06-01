@@ -1,7 +1,11 @@
 import { logger } from "./logger";
 
 export interface BarrierFeature {
-  kind: "highway" | "water" | "urban";
+  kind: "highway" | "railway" | "water" | "urban";
+  // Raw OSM tag value, e.g. "motorway", "primary", "rail", "river", "industrial".
+  subtype?: string;
+  // OSM name when present, e.g. "A2", "Tauernautobahn", "Drava".
+  name?: string;
   lat: number;
   lon: number;
 }
@@ -48,6 +52,7 @@ export async function fetchBarriersNear(
 [out:json][timeout:15];
 (
   way["highway"~"motorway|trunk|primary|secondary|tertiary"](${bbox});
+  way["railway"~"rail|light_rail|narrow_gauge"](${bbox});
   way["waterway"~"river|canal"](${bbox});
   way["natural"="water"](${bbox});
   way["landuse"~"residential|industrial|commercial"](${bbox});
@@ -60,7 +65,10 @@ out center 400;`;
       const timer = setTimeout(() => ctrl.abort(), 18000);
       const r = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": "AnimalView/1.0 (wildlife tracking; Bear71-inspired)",
+        },
         body: "data=" + encodeURIComponent(query),
         signal: ctrl.signal,
       });
@@ -73,11 +81,25 @@ out center 400;`;
         if (!center) continue;
         const tags = el.tags || {};
         let kind: BarrierFeature["kind"] | null = null;
-        if (tags.highway) kind = "highway";
-        else if (tags.waterway || tags.natural === "water") kind = "water";
-        else if (tags.landuse) kind = "urban";
+        let subtype: string | undefined;
+        if (tags.highway) {
+          kind = "highway";
+          subtype = tags.highway;
+        } else if (tags.railway) {
+          kind = "railway";
+          subtype = tags.railway;
+        } else if (tags.waterway || tags.natural === "water") {
+          kind = "water";
+          subtype = tags.waterway || (tags.natural === "water" ? "water" : undefined);
+        } else if (tags.landuse) {
+          kind = "urban";
+          subtype = tags.landuse;
+        }
         if (!kind) continue;
-        features.push({ kind, lat: center.lat, lon: center.lon });
+        const feature: BarrierFeature = { kind, lat: center.lat, lon: center.lon };
+        if (subtype) feature.subtype = subtype;
+        if (typeof tags.name === "string" && tags.name.length > 0) feature.name = tags.name;
+        features.push(feature);
       }
       CACHE.set(key, { at: Date.now(), features });
       return features;

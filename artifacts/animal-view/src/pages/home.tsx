@@ -47,6 +47,10 @@ import {
   CloudFog,
   CloudDrizzle,
   CloudLightning,
+  Route,
+  TrainFront,
+  Waves,
+  Building2,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -69,6 +73,37 @@ function weatherIcon(code: number): LucideIcon {
   return Cloud;
 }
 
+const BARRIER_KIND_LABELS_FR: Record<string, string> = {
+  highway: "Route",
+  railway: "Voie ferrée",
+  water: "Cours d'eau",
+  urban: "Zone urbanisée",
+};
+
+const BARRIER_SUBTYPE_LABELS_FR: Record<string, string> = {
+  motorway: "Autoroute",
+  trunk: "Voie rapide",
+  primary: "Route principale",
+  secondary: "Route secondaire",
+  tertiary: "Route locale",
+  rail: "Voie ferrée",
+  light_rail: "Train léger",
+  narrow_gauge: "Voie étroite",
+  river: "Rivière",
+  canal: "Canal",
+  water: "Plan d'eau",
+  residential: "Zone résidentielle",
+  industrial: "Zone industrielle",
+  commercial: "Zone commerciale",
+};
+
+function barrierIcon(kind: string): LucideIcon {
+  if (kind === "railway") return TrainFront;
+  if (kind === "water") return Waves;
+  if (kind === "urban") return Building2;
+  return Route;
+}
+
 type Mode = "real" | "sim";
 
 interface SimPoint {
@@ -83,7 +118,7 @@ interface SimResult {
   speciesId: string;
   individualId: string;
   points: SimPoint[];
-  barriers: { kind: string; lat: number; lon: number }[];
+  barriers: { kind: string; subtype?: string; name?: string; lat: number; lon: number }[];
   warnings: string[];
 }
 
@@ -403,7 +438,7 @@ export default function Home() {
       : { lat: 0, lon: 0, radius: 8000 },
     {
       query: {
-        enabled: mode === "real" && showHumanPressure && !!trackCenter,
+        enabled: mode === "real" && !!trackCenter,
         staleTime: 5 * 60 * 1000,
         queryKey: getGetHumanPressureQueryKey(
           trackCenter
@@ -413,6 +448,52 @@ export default function Home() {
       },
     },
   );
+
+  // Location-aware barrier probe for the nearest continuity break. The
+  // track-wide fetch above is centred on the whole track and capped at 20 km,
+  // so for long dispersal tracks it cannot reveal what is near the *current*
+  // playhead. We query a small radius around the current point instead,
+  // quantised to a ~0.02° grid so the playhead can advance without firing a
+  // new request on every tick (the 30 min server cache absorbs the rest).
+  const barrierProbe = useMemo(() => {
+    if (mode !== "real" || !currentPoint) return null;
+    const q = (v: number) => Math.round(v / 0.02) * 0.02;
+    return { lat: q(currentPoint.lat), lon: q(currentPoint.lon), radius: 5000 };
+  }, [mode, currentPoint]);
+
+  const localBarrierReq = useGetHumanPressure(
+    barrierProbe ?? { lat: 0, lon: 0, radius: 5000 },
+    {
+      query: {
+        enabled: mode === "real" && !!barrierProbe,
+        staleTime: 30 * 60 * 1000,
+        queryKey: getGetHumanPressureQueryKey(
+          barrierProbe ?? { lat: 0, lon: 0, radius: 5000 },
+        ),
+      },
+    },
+  );
+
+  // Nearest human-made barrier (continuity break) to the current playhead
+  // position — road / railway / waterway / built-up area, with OSM detail.
+  const nearestBarrier = useMemo(() => {
+    if (!currentPoint) return null;
+    const barriers =
+      mode === "sim" ? simResult?.barriers : localBarrierReq.data?.features;
+    if (!barriers || barriers.length === 0) return null;
+    const here = turf.point([currentPoint.lon, currentPoint.lat]);
+    let best: (typeof barriers)[number] | null = null;
+    let bestD = Infinity;
+    for (const b of barriers) {
+      const d = turf.distance(here, turf.point([b.lon, b.lat]), { units: "meters" });
+      if (d < bestD) {
+        bestD = d;
+        best = b;
+      }
+    }
+    if (!best) return null;
+    return { barrier: best, distanceM: bestD };
+  }, [currentPoint, mode, simResult, localBarrierReq.data]);
 
   // Human-pressure heatmap source — barriers from sim result or real-mode fetch
   const humanPressureGeojson = useMemo(() => {
@@ -1524,6 +1605,61 @@ export default function Home() {
                   </p>
                 </div>
               )}
+
+              {nearestBarrier &&
+                (() => {
+                  const b = nearestBarrier.barrier;
+                  const BarrierIcon = barrierIcon(b.kind);
+                  const kindLabel = BARRIER_KIND_LABELS_FR[b.kind] ?? b.kind;
+                  const detailLabel = b.subtype
+                    ? BARRIER_SUBTYPE_LABELS_FR[b.subtype] ?? b.subtype
+                    : null;
+                  return (
+                    <div className="p-4 bg-muted/30 border border-border/50 rounded-sm mt-6">
+                      <div className="flex items-center gap-2 mb-3">
+                        <BarrierIcon className="w-3.5 h-3.5 text-red-300" />
+                        <span className="text-[9px] font-mono uppercase tracking-widest text-red-300">
+                          Rupture de continuité
+                        </span>
+                      </div>
+                      <div className="flex items-baseline gap-2 mb-3">
+                        <span className="text-base font-mono text-foreground">
+                          {detailLabel ?? kindLabel}
+                        </span>
+                        {b.name && (
+                          <span className="text-[11px] font-mono text-muted-foreground">
+                            {b.name}
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-2 font-mono text-[11px] text-muted-foreground/80">
+                        <div className="flex justify-between border-b border-border/50 pb-2">
+                          <span className="uppercase tracking-widest text-muted-foreground">Type</span>
+                          <span>{kindLabel}</span>
+                        </div>
+                        {detailLabel && (
+                          <div className="flex justify-between border-b border-border/50 pb-2">
+                            <span className="uppercase tracking-widest text-muted-foreground">Détail</span>
+                            <span>{detailLabel}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between border-b border-border/50 pb-2">
+                          <span className="uppercase tracking-widest text-muted-foreground">Distance</span>
+                          <span
+                            className={nearestBarrier.distanceM < 200 ? "text-red-300" : ""}
+                          >
+                            {nearestBarrier.distanceM < 1000
+                              ? `${Math.round(nearestBarrier.distanceM)} m`
+                              : `${(nearestBarrier.distanceM / 1000).toFixed(1)} km`}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-[10px] font-mono leading-relaxed text-muted-foreground/60 mt-3">
+                        Infrastructure humaine la plus proche (OpenStreetMap) — obstacle potentiel à la libre circulation de l'animal.
+                      </p>
+                    </div>
+                  );
+                })()}
 
               <div className="p-4 bg-primary/5 border border-primary/20 rounded-sm mt-6">
                 <div className="flex items-center gap-2 mb-3">
