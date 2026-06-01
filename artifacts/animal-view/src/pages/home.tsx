@@ -150,6 +150,9 @@ export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [currentTimeIndex, setCurrentTimeIndex] = useState(0);
+  // True while the user is manually stepping through photos, so the
+  // auto-follow effect doesn't stomp their selection when the playhead moves.
+  const manualPhotoRef = useRef(false);
 
   const providersReq = useGetProviders();
   const speciesReq = useListSpecies();
@@ -565,6 +568,7 @@ export default function Home() {
 
   useEffect(() => {
     if (mode !== "real") return;
+    if (manualPhotoRef.current) return;
     if (!currentPoint || imageryMatches.length === 0) return;
     const pt = turf.point([currentPoint.lon, currentPoint.lat]);
     let closest = null;
@@ -619,9 +623,15 @@ export default function Home() {
   const goToPhoto = (idx: number) => {
     if (idx < 0 || idx >= orderedMatches.length) return;
     const target = orderedMatches[idx];
+    manualPhotoRef.current = true;
     setIsPlaying(false);
     setCurrentTimeIndex(target.pointIndex);
     setActiveMatch(target.match);
+  };
+
+  const togglePlay = () => {
+    if (!isPlaying) manualPhotoRef.current = false;
+    setIsPlaying((p) => !p);
   };
 
   // Reset playback when switching modes
@@ -630,6 +640,7 @@ export default function Home() {
     setIsPlaying(false);
     setActiveMatch(null);
     setPlacing(false);
+    manualPhotoRef.current = false;
   }, [mode]);
 
   const handleMapClick = (e: any) => {
@@ -1330,7 +1341,7 @@ export default function Home() {
         <div className="absolute bottom-0 left-0 right-0 p-6 pointer-events-none flex justify-center">
           <Card className="pointer-events-auto bg-background/90 backdrop-blur-xl border-border w-full max-w-3xl flex items-center p-4 gap-6 shadow-2xl">
             <div className="flex items-center gap-2">
-              <Button size="icon" variant="ghost" className="h-10 w-10 rounded-full" onClick={() => setIsPlaying(!isPlaying)}>
+              <Button size="icon" variant="ghost" className="h-10 w-10 rounded-full" onClick={togglePlay}>
                 {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-1" />}
               </Button>
               <div className="flex flex-col ml-2">
