@@ -1554,12 +1554,39 @@ export default function Home() {
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>
-                    <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/60 backdrop-blur-sm rounded-sm border border-white/10 text-[9px] font-mono text-white/80 tabular-nums tracking-widest">
-                      {currentPhotoIndex >= 0 ? currentPhotoIndex + 1 : "–"}/{orderedMatches.length}
-                    </div>
                   </>
                 )}
               </div>
+
+              {orderedMatches.length > 1 && (
+                <div className="flex items-center justify-between gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPhotoIndex <= 0}
+                    onClick={() => goToPhoto((currentPhotoIndex < 0 ? 1 : currentPhotoIndex) - 1)}
+                    className="h-9 px-3 font-mono text-[10px] uppercase tracking-widest gap-1"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Préc.
+                  </Button>
+                  <span className="text-[10px] font-mono text-muted-foreground tabular-nums tracking-widest">
+                    {currentPhotoIndex >= 0 ? currentPhotoIndex + 1 : "–"} / {orderedMatches.length}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPhotoIndex >= orderedMatches.length - 1}
+                    onClick={() => goToPhoto(currentPhotoIndex < 0 ? 0 : currentPhotoIndex + 1)}
+                    className="h-9 px-3 font-mono text-[10px] uppercase tracking-widest gap-1"
+                  >
+                    Suiv.
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
 
               <div className="space-y-3 font-mono text-[11px] text-muted-foreground/80">
                 <div className="flex justify-between border-b border-border/50 pb-2">
