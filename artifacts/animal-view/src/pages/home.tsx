@@ -775,31 +775,6 @@ export default function Home() {
                 >
                   Load Track
                 </Button>
-                <Button
-                  onClick={handleFindImagery}
-                  disabled={!trackReq.data?.points || matchImageryMutation.isPending}
-                  className="w-full font-mono uppercase tracking-widest text-xs h-10 bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-primary-foreground transition-all"
-                >
-                  {matchImageryMutation.isPending ? "Searching..." : "Find Context Imagery"}
-                </Button>
-                {!matchImageryMutation.isPending &&
-                  matchImageryMutation.isSuccess &&
-                  imageryMatches.length === 0 && (
-                    <p className="text-[10px] text-muted-foreground/70 leading-relaxed font-mono">
-                      No geotagged photos found near this track. Many wild
-                      corridors have little or no public imagery — try a larger
-                      search radius or a different individual.
-                    </p>
-                  )}
-                {!matchImageryMutation.isPending &&
-                  matchImageryMutation.isSuccess &&
-                  imageryMatches.length > 0 && (
-                    <p className="text-[10px] text-primary/80 leading-relaxed font-mono">
-                      {imageryMatches.length} context image
-                      {imageryMatches.length === 1 ? "" : "s"} found along the
-                      track.
-                    </p>
-                  )}
               </div>
             </>
           ) : (
@@ -1362,6 +1337,35 @@ export default function Home() {
         </div>
 
         <div className="flex-1 p-6 overflow-y-auto">
+          {mode !== "sim" && (
+            <div className="space-y-3 pb-6 mb-6 border-b border-border">
+              <Button
+                onClick={handleFindImagery}
+                disabled={!trackReq.data?.points || matchImageryMutation.isPending}
+                className="w-full font-mono uppercase tracking-widest text-xs h-10 bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-primary-foreground transition-all"
+              >
+                {matchImageryMutation.isPending ? "Searching..." : "Find Context Imagery"}
+              </Button>
+              {!matchImageryMutation.isPending &&
+                matchImageryMutation.isSuccess &&
+                imageryMatches.length === 0 && (
+                  <p className="text-[10px] text-muted-foreground/70 leading-relaxed font-mono">
+                    No geotagged photos found near this track. Many wild
+                    corridors have little or no public imagery — try a larger
+                    search radius or a different individual.
+                  </p>
+                )}
+              {!matchImageryMutation.isPending &&
+                matchImageryMutation.isSuccess &&
+                imageryMatches.length > 0 && (
+                  <p className="text-[10px] text-primary/80 leading-relaxed font-mono">
+                    {imageryMatches.length} context image
+                    {imageryMatches.length === 1 ? "" : "s"} found along the
+                    track.
+                  </p>
+                )}
+            </div>
+          )}
           {mode === "sim" ? (
             currentPoint && simResult ? (
               <div className="space-y-4 font-mono text-[11px] text-muted-foreground/80">
