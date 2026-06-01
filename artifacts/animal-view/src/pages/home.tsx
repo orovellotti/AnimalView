@@ -1443,9 +1443,8 @@ export default function Home() {
           </h2>
         </div>
 
-        <div className="flex-1 p-6 overflow-y-auto">
-          {mode !== "sim" && (
-            <div className="space-y-3 pb-6 mb-6 border-b border-border">
+        {mode !== "sim" && (
+          <div className="p-6 border-b border-border space-y-3 shrink-0">
               <Button
                 onClick={handleFindImagery}
                 disabled={!trackReq.data?.points || matchImageryMutation.isPending}
@@ -1471,8 +1470,9 @@ export default function Home() {
                     track.
                   </p>
                 )}
-            </div>
-          )}
+          </div>
+        )}
+        <div className="flex-1 p-6 overflow-y-auto">
           {mode === "sim" ? (
             currentPoint && simResult ? (
               <div className="space-y-4 font-mono text-[11px] text-muted-foreground/80">
