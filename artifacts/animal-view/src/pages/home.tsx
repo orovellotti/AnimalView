@@ -216,9 +216,9 @@ export default function Home() {
   useEffect(() => {
     if (didAutoStudyRef.current) return;
     if (speciesId !== "wolf") return;
-    const boutin = studiesReq.data?.studies?.find((s) => s.id === "boutin-alberta-wolf");
-    if (boutin && !studyId) {
-      setStudyId("boutin-alberta-wolf");
+    const slavc = studiesReq.data?.studies?.find((s) => s.id === "slavc-dispersal");
+    if (slavc && !studyId) {
+      setStudyId("slavc-dispersal");
       didAutoStudyRef.current = true;
     }
   }, [speciesId, studiesReq.data, studyId]);
@@ -226,13 +226,14 @@ export default function Home() {
   const didAutoIndividualRef = useRef(false);
   useEffect(() => {
     if (didAutoIndividualRef.current) return;
-    if (studyId !== "boutin-alberta-wolf") return;
-    const wolfInd = individualsReq.data?.individuals?.find((i) => i.id === "13791");
-    if (wolfInd && !individualId) {
-      setIndividualId("13791");
+    if (studyId !== "slavc-dispersal") return;
+    const slavcInd = individualsReq.data?.individuals?.find((i) => i.id === "Slavc");
+    if (slavcInd && !individualId) {
+      setIndividualId("Slavc");
       didAutoIndividualRef.current = true;
       setIsTracking(true);
       setCurrentTimeIndex(0);
+      setSidebarOpen(false);
     }
   }, [studyId, individualsReq.data, individualId]);
 
