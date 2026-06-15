@@ -20,9 +20,34 @@ import {
 
 const router: IRouter = Router();
 
-router.get("/species", (_req, res) => {
-  const data = ListSpeciesResponse.parse({ species: SPECIES });
-  res.json(data);
+type SpeciesEntry = (typeof SPECIES)[number];
+type StudyLogger = { warn: (obj: unknown, msg: string) => void };
+
+async function studiesForSpecies(
+  species: SpeciesEntry,
+  log: StudyLogger,
+): Promise<ReturnType<typeof listRealStudies>> {
+  const bundledStudies = listRealStudies(species.id);
+  let movebankStudies: ReturnType<typeof listRealStudies> = [];
+  if (hasMovebank()) {
+    try {
+      movebankStudies = await searchMovebankStudies(species.scientificName);
+    } catch (err) {
+      log.warn({ err }, "movebank studies fetch failed");
+    }
+  }
+  return [...bundledStudies, ...movebankStudies];
+}
+
+router.get("/species", async (req, res) => {
+  const results = await Promise.all(
+    SPECIES.map(async (sp) => ({
+      species: sp,
+      hasTracks: (await studiesForSpecies(sp, req.log)).length > 0,
+    })),
+  );
+  const species = results.filter((r) => r.hasTracks).map((r) => r.species);
+  res.json(ListSpeciesResponse.parse({ species }));
 });
 
 router.get("/studies", async (req, res) => {
@@ -31,21 +56,11 @@ router.get("/studies", async (req, res) => {
     res.status(400).json({ error: "species query param required" });
     return;
   }
-  const bundledStudies = listRealStudies(parsed.data.species);
-  let movebankStudies: typeof bundledStudies = [];
-  if (hasMovebank()) {
-    const sp = SPECIES.find((s) => s.id === parsed.data.species);
-    if (sp) {
-      try {
-        movebankStudies = await searchMovebankStudies(sp.scientificName);
-      } catch (err) {
-        req.log.warn({ err }, "movebank studies fetch failed");
-      }
-    }
-  }
-  const data = ListStudiesResponse.parse({
-    studies: [...bundledStudies, ...movebankStudies],
-  });
+  const sp = SPECIES.find((s) => s.id === parsed.data.species);
+  const studies = sp
+    ? await studiesForSpecies(sp, req.log)
+    : listRealStudies(parsed.data.species);
+  const data = ListStudiesResponse.parse({ studies });
   res.json(data);
 });
 
