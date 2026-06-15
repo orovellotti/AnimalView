@@ -62,6 +62,8 @@ const translations: Record<Lang, Record<string, string>> = {
     // --- Basemap / theme / language ---
     "basemap.dark": "Sombre",
     "basemap.satellite": "Satellite",
+    "basemap.roads": "Routes",
+    "basemap.roadsHint": "Afficher/masquer les routes et sentiers",
     "theme.toLight": "Passer en mode clair",
     "theme.toDark": "Passer en mode sombre",
 
@@ -291,6 +293,8 @@ const translations: Record<Lang, Record<string, string>> = {
     // --- Basemap / theme / language ---
     "basemap.dark": "Dark",
     "basemap.satellite": "Satellite",
+    "basemap.roads": "Roads",
+    "basemap.roadsHint": "Show/hide roads and trails",
     "theme.toLight": "Switch to light mode",
     "theme.toDark": "Switch to dark mode",
 

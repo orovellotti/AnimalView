@@ -166,6 +166,7 @@ export default function Home() {
   const [showHumanPressure, setShowHumanPressure] = useState<boolean>(false);
 
   const [basemap, setBasemap] = useState<"dark" | "satellite">("satellite");
+  const [showRoads, setShowRoads] = useState<boolean>(true);
   const mapRef = useRef<MapRef | null>(null);
 
   const [theme, setTheme] = useState<"dark" | "light">(() => {
@@ -787,24 +788,6 @@ export default function Home() {
             attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics",
             maxzoom: 19,
           },
-          "esri-transportation": {
-            type: "raster",
-            tiles: [
-              "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
-            ],
-            tileSize: 256,
-            maxzoom: 19,
-            attribution: "Roads © Esri, HERE, Garmin, OpenStreetMap contributors",
-          },
-          "osm-trails": {
-            type: "raster",
-            tiles: [
-              "https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png",
-            ],
-            tileSize: 256,
-            maxzoom: 18,
-            attribution: "Hiking trails © waymarkedtrails.org, OpenStreetMap contributors",
-          },
           "esri-labels": {
             type: "raster",
             tiles: [
@@ -816,18 +799,6 @@ export default function Home() {
         },
         layers: [
           { id: "esri-satellite", type: "raster", source: "esri-satellite" },
-          {
-            id: "osm-trails",
-            type: "raster",
-            source: "osm-trails",
-            paint: { "raster-opacity": 0.9 },
-          },
-          {
-            id: "esri-transportation",
-            type: "raster",
-            source: "esri-transportation",
-            paint: { "raster-opacity": 0.9 },
-          },
           {
             id: "esri-labels",
             type: "raster",
@@ -1203,6 +1174,43 @@ export default function Home() {
           onClick={handleMapClick}
           cursor={mode === "sim" && placing ? "crosshair" : undefined}
         >
+          {/* Roads & hiking-trail overlays (satellite only, toggleable) — under the labels layer */}
+          {basemap === "satellite" && showRoads && (
+            <Source
+              key="osm-trails"
+              id="osm-trails"
+              type="raster"
+              tiles={["https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png"]}
+              tileSize={256}
+              maxzoom={18}
+              attribution="Hiking trails © waymarkedtrails.org, OpenStreetMap contributors"
+            >
+              <Layer
+                id="osm-trails"
+                type="raster"
+                paint={{ "raster-opacity": 0.9 }}
+                beforeId="esri-labels"
+              />
+            </Source>
+          )}
+          {basemap === "satellite" && showRoads && (
+            <Source
+              key="esri-transportation"
+              id="esri-transportation"
+              type="raster"
+              tiles={["https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}"]}
+              tileSize={256}
+              maxzoom={19}
+              attribution="Roads © Esri, HERE, Garmin, OpenStreetMap contributors"
+            >
+              <Layer
+                id="esri-transportation"
+                type="raster"
+                paint={{ "raster-opacity": 0.9 }}
+                beforeId="esri-labels"
+              />
+            </Source>
+          )}
           {/* 1 km buffer corridor around the track */}
           {trackBuffer && (
             <Source key="track-buffer" id="track-buffer" type="geojson" data={trackBuffer as any}>
@@ -1520,6 +1528,20 @@ export default function Home() {
               </button>
             ))}
           </div>
+          {basemap === "satellite" && (
+            <button
+              type="button"
+              onClick={() => setShowRoads((v) => !v)}
+              title={t("basemap.roadsHint")}
+              className={`px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest transition-colors bg-background/85 backdrop-blur-md border border-border rounded-sm shadow-lg ${
+                showRoads
+                  ? "text-primary bg-primary/20"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t("basemap.roads")}
+            </button>
+          )}
         </div>
 
         {/* Placement hint */}
