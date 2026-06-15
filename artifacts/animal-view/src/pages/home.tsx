@@ -1086,7 +1086,7 @@ export default function Home() {
         >
           {/* 1 km buffer corridor around the track */}
           {trackBuffer && (
-            <Source id="track-buffer" type="geojson" data={trackBuffer as any}>
+            <Source key="track-buffer" id="track-buffer" type="geojson" data={trackBuffer as any}>
               <Layer
                 id="track-buffer-fill"
                 type="fill"
@@ -1109,7 +1109,7 @@ export default function Home() {
           )}
 
           {trackGeojson && (
-            <Source id="track" type="geojson" data={trackGeojson as any}>
+            <Source key="track" id="track" type="geojson" data={trackGeojson as any}>
               <Layer
                 id="track-line"
                 type="line"
@@ -1126,7 +1126,7 @@ export default function Home() {
 
           {/* Comet trail — fading glow behind the moving point */}
           {cometTrailGeojson && (
-            <Source id="comet-trail" type="geojson" lineMetrics data={cometTrailGeojson as any}>
+            <Source key="comet-trail" id="comet-trail" type="geojson" lineMetrics data={cometTrailGeojson as any}>
               <Layer
                 id="comet-trail-glow"
                 type="line"
@@ -1160,7 +1160,7 @@ export default function Home() {
 
           {/* Human-presence heatmap (OSM-derived: trails, lifts, huts, parking, roads, settlements) */}
           {showHumanPressure && humanPressureGeojson && (
-            <Source id="human-pressure-heat" type="geojson" data={humanPressureGeojson as any}>
+            <Source key="human-pressure-heat" id="human-pressure-heat" type="geojson" data={humanPressureGeojson as any}>
               <Layer
                 id="human-pressure-heat-layer"
                 type="heatmap"
