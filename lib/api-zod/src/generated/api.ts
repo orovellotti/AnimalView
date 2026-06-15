@@ -41,7 +41,8 @@ export const ListStudiesResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "principalInvestigator": zod.string().optional(),
-  "location": zod.string().optional()
+  "location": zod.string().optional(),
+  "citation": zod.string().optional()
 }))
 })
 

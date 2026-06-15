@@ -62,6 +62,7 @@ export type MovebankStudy = {
   name: string;
   principalInvestigator?: string;
   location?: string;
+  citation?: string;
 };
 
 export type MovebankIndividual = {
@@ -94,13 +95,19 @@ export async function searchMovebankStudies(
     const taxa = (r["taxon_ids"] ?? "").toLowerCase();
     return needle.length > 0 && taxa.includes(needle);
   });
-  return matches.slice(0, 50).map((r) => ({
-    id: r["id"] ?? "",
-    name: r["name"] ?? r["id"] ?? "(unnamed study)",
-    principalInvestigator:
-      r["principal_investigator_name"] || r["contact_person_name"] || undefined,
-    location: r["study_objective"] || undefined,
-  }));
+  return matches.slice(0, 50).map((r) => {
+    const id = r["id"] ?? "";
+    const name = r["name"] ?? r["id"] ?? "(unnamed study)";
+    const pi =
+      r["principal_investigator_name"] || r["contact_person_name"] || undefined;
+    return {
+      id,
+      name,
+      principalInvestigator: pi,
+      location: r["study_objective"] || undefined,
+      citation: r["citation"] || undefined,
+    };
+  });
 }
 
 export async function listMovebankIndividuals(

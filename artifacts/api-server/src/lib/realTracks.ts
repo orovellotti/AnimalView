@@ -143,6 +143,7 @@ export function listRealStudies(species: string): {
   name: string;
   principalInvestigator?: string;
   location?: string;
+  citation?: string;
 }[] {
   if (species === "wolf") {
     return [
@@ -151,12 +152,16 @@ export function listRealStudies(species: string): {
         name: "Slavc Dispersal (approx.)",
         principalInvestigator: "SLOWOLF / LIFE WOLFALPS (reconstructed)",
         location: "Slovenia → Lessinia, Italian Alps",
+        citation:
+          "Approximate reconstruction. Source: SloWolf project, University of Ljubljana — documented long-distance dispersal of wolf “Slavc” (Dinaric population → Lessinia), 2011–2012.",
       },
       {
         id: "boutin-alberta-wolf",
         name: "Boutin Alberta Grey Wolf",
         principalInvestigator: "Stan Boutin (U. Alberta)",
         location: "Northeastern Alberta, Canada",
+        citation:
+          "Boutin, S. “ABoVE: Boutin Alberta Grey Wolf”, Department of Biological Sciences, University of Alberta. Accessed via Movebank.org (study 492444603).",
       },
     ];
   }
@@ -167,6 +172,8 @@ export function listRealStudies(species: string): {
         name: "ALCOTRA LEMED-IBEX — Capra ibex",
         principalInvestigator: "Parc national des Écrins (project ALCOTRA LEMED-IBEX)",
         location: "Western Alps, France",
+        citation:
+          "Parc national des Écrins. “Monitoring of Capra ibex populations in the western Alps” (programme ALCOTRA LEMED-IBEX). Accessed via Movebank.org.",
       },
     ];
   }
@@ -176,6 +183,8 @@ export function listRealStudies(species: string): {
         id: "nki-elephant",
         name: "Elephant Research — Nki National Park (Cameroon)",
         location: "Nki National Park, Cameroon",
+        citation:
+          "Blake, S., Douglas-Hamilton, I. & Karesh, W. B. (2001). GPS telemetry of forest elephants in Central Africa: results of a preliminary study. African Journal of Ecology 39:178–186. Dataset: “Elephant Research — Nki National Park (Cameroon)”, accessed via Movebank.org.",
       },
     ];
   }

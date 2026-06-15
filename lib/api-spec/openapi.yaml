@@ -362,6 +362,8 @@ components:
           type: string
         location:
           type: string
+        citation:
+          type: string
     Individual:
       type: object
       required: [id, name]

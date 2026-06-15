@@ -215,6 +215,10 @@ export default function Home() {
     () => speciesReq.data?.species?.find((s) => s.id === speciesId),
     [speciesReq.data, speciesId],
   );
+  const selectedStudy = useMemo(
+    () => studiesReq.data?.studies?.find((s) => s.id === studyId),
+    [studiesReq.data, studyId],
+  );
   const analyzeImageryMutation = useAnalyzeImagery();
   const [narrative, setNarrative] = useState<string | null>(null);
   const [narrativeStatus, setNarrativeStatus] = useState<
@@ -880,6 +884,26 @@ export default function Home() {
                     ))}
                   </SelectContent>
                 </Select>
+                {selectedStudy?.citation ? (
+                  <div className="mt-2 p-3 bg-muted/30 border border-border/50 rounded-sm space-y-1">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      {t("controls.dataSource")}
+                    </div>
+                    {selectedStudy.principalInvestigator ? (
+                      <div className="text-xs text-foreground/90">
+                        {selectedStudy.principalInvestigator}
+                      </div>
+                    ) : null}
+                    {selectedStudy.location ? (
+                      <div className="text-xs text-muted-foreground">
+                        {selectedStudy.location}
+                      </div>
+                    ) : null}
+                    <div className="text-[11px] leading-snug text-muted-foreground/90 italic">
+                      {selectedStudy.citation}
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               <div className="space-y-2">

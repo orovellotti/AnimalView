@@ -21,6 +21,7 @@ export interface Study {
   name: string;
   principalInvestigator?: string;
   location?: string;
+  citation?: string;
 }
 
 export interface Individual {
