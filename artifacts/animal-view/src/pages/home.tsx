@@ -156,7 +156,7 @@ interface SimResult {
 
 export default function Home() {
   const { lang, setLang, t } = useLang();
-  const [mode, setMode] = useState<Mode>("real");
+  const [mode] = useState<Mode>("real");
 
   // --- Real track state ---
   const [speciesId, setSpeciesId] = useState<string>("");
@@ -819,25 +819,8 @@ export default function Home() {
             </button>
           </div>
           <p className="text-xs text-muted-foreground uppercase tracking-widest">
-            {mode === "sim" ? t("mode.subtitleSim") : t("mode.subtitleReal")}
+            {t("mode.subtitleReal")}
           </p>
-          {/* Mode toggle */}
-          <div className="mt-4 grid grid-cols-2 gap-1 p-1 bg-background/40 border border-border rounded-sm">
-            {(["real", "sim"] as Mode[]).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMode(m)}
-                className={`text-[10px] font-mono uppercase tracking-widest py-2 rounded-sm transition-all ${
-                  mode === m
-                    ? "bg-primary/20 text-primary border border-primary/40"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {m === "real" ? t("mode.real") : t("mode.sim")}
-              </button>
-            ))}
-          </div>
         </div>
 
         <div className="p-6 flex-1 overflow-y-auto space-y-6">

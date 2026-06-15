@@ -1,0 +1,30 @@
+The 2026 Ebbe Nielsen Challenge
+
+The 2026 Ebbe Nielsen Challenge will award up to €20,000 in prizes to recognize innovative tools — both new and existing — that leverage biodiversity data from the GBIF network.
+
+Entrants should carefully review the entry and eligibility requirements outlined in the 2026 call for submissions and the official rules. The form should be submitted in English. Ineligible or incomplete submissions will not be considered.
+
+Entries must be received through this form by Friday 26 June 2026, at 23:59 CEST (UTC+2). The winners will be announced at the 33rd GBIF Governing Board meeting in Oslo, Norway in September 2026.
+
+NOTE: Submitted entries may be edited until the deadline, but we still recommend reviewing this form and preparing the contents of your submission prior to filling it out.
+
+Please address all inquiries and questions about the Challenge to ENChallenge@gbif.org.
+
+Best of luck!
+
+ 
+Primary contact name: 
+olivier rovellotti
+Other team members' names (if applicable)
+Email addresses of all team members submitting to the Challenge
+Affiliation(s) of all team members submitting to the Challenge (please include country, institution and ORCID ID)
+Submission title
+Abstract and rationale (max. 1,000 words): Entrants should clearly describe the submission, why it matters to GBIF communities and how audiences will benefit from the tool/concept.
+Operating instructions: How does your submission work? Provide simple, clear step-by-step instructions here (detailed technical aspects should be documented in your submission's website or repository e.g., GitHub). 
+Please make sure all provided material (including instructions, videos, repositories etc.) is openly accessible.
+Link to video or screencast (max 5 min.) showcasing the entry along with descriptions, screenshots, presentations, posters, infographics, etc. The video or screencast should demonstrate and describe the submission, its features and its benefits.
+Link(s) to source location: direct the jury to your online submission's website or repository. 
+By entering this submission into the 2026 Ebbe Nielsen Challenge, I agree to abide by the Challenge rules and grant GBIF permission both to register my contact details in accordance with its privacy policy and to contact me by email regarding this entry if required.
+Agree	
+
+100%
