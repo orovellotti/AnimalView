@@ -384,6 +384,20 @@ export default function Home() {
     };
   }, [activePoints]);
 
+  // 1 km buffer corridor around the track — the band of landscape the animal
+  // actually moved through. Used both as a visible map layer and to clip the
+  // human-presence data so the heatmap reflects the corridor, not a circle
+  // around the track centroid.
+  const trackBuffer = useMemo(() => {
+    if (!activePoints || activePoints.length < 2) return null;
+    try {
+      const line = turf.lineString(activePoints.map((p) => [p.lon, p.lat]));
+      return turf.buffer(line, 1, { units: "kilometers" }) ?? null;
+    } catch {
+      return null;
+    }
+  }, [activePoints]);
+
   const currentPoint = activePoints?.[currentTimeIndex];
 
   // Real historical weather at the current playhead moment. Coordinates are
@@ -531,7 +545,19 @@ export default function Home() {
     if (mode === "real") {
       const presence = realPresenceReq.data?.features;
       if (!presence || presence.length === 0) return null;
-      features = presence.map((p) => ({
+      // Clip presence points to the 1 km track-buffer corridor so the heatmap
+      // reflects the band the animal actually traversed, not the whole fetch
+      // radius around the centroid. Fall back to all points if no buffer yet.
+      const inCorridor = trackBuffer
+        ? presence.filter((p) => {
+            try {
+              return turf.booleanPointInPolygon([p.lon, p.lat], trackBuffer as any);
+            } catch {
+              return true;
+            }
+          })
+        : presence;
+      features = inCorridor.map((p) => ({
         type: "Feature" as const,
         properties: { weight: p.weight },
         geometry: { type: "Point" as const, coordinates: [p.lon, p.lat] },
@@ -549,7 +575,7 @@ export default function Home() {
     }
     if (features.length === 0) return null;
     return { type: "FeatureCollection" as const, features };
-  }, [mode, simResult, realPresenceReq.data]);
+  }, [mode, simResult, realPresenceReq.data, trackBuffer]);
 
   // Auto-fit map to show the entire track whenever a new one appears
   useEffect(() => {
@@ -1058,6 +1084,30 @@ export default function Home() {
           onClick={handleMapClick}
           cursor={mode === "sim" && placing ? "crosshair" : undefined}
         >
+          {/* 1 km buffer corridor around the track */}
+          {trackBuffer && (
+            <Source id="track-buffer" type="geojson" data={trackBuffer as any}>
+              <Layer
+                id="track-buffer-fill"
+                type="fill"
+                paint={{
+                  "fill-color": mode === "sim" ? "#67e8f9" : "#eab308",
+                  "fill-opacity": 0.08,
+                }}
+              />
+              <Layer
+                id="track-buffer-outline"
+                type="line"
+                paint={{
+                  "line-color": mode === "sim" ? "#67e8f9" : "#eab308",
+                  "line-width": 1,
+                  "line-opacity": 0.35,
+                  "line-dasharray": [3, 2],
+                }}
+              />
+            </Source>
+          )}
+
           {trackGeojson && (
             <Source id="track" type="geojson" data={trackGeojson as any}>
               <Layer
