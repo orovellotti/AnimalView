@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { Link } from "wouter";
 import Map, { Source, Layer, Marker, type MapRef } from "react-map-gl/maplibre";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -764,7 +765,7 @@ export default function Home() {
       >
         <div className="p-6 border-b border-border">
           <div className="flex items-start justify-between">
-            <h1 className="text-xl tracking-widest font-mono font-bold text-primary mb-1 uppercase">AnimalView</h1>
+            <Link href="/" className="text-xl tracking-widest font-mono font-bold text-primary mb-1 uppercase hover:opacity-80 transition-opacity">AnimalView</Link>
             <button
               type="button"
               onClick={() => setSidebarOpen(false)}
