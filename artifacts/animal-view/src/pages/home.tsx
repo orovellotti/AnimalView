@@ -64,6 +64,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useLang, type Lang } from "@/lib/i18n";
 
 function weatherIcon(code: number): LucideIcon {
   if (code === 0) return Sun;
@@ -77,28 +78,54 @@ function weatherIcon(code: number): LucideIcon {
   return Cloud;
 }
 
-const BARRIER_KIND_LABELS_FR: Record<string, string> = {
-  highway: "Route",
-  railway: "Voie ferrée",
-  water: "Cours d'eau",
-  urban: "Zone urbanisée",
+const BARRIER_KIND_LABELS: Record<Lang, Record<string, string>> = {
+  fr: {
+    highway: "Route",
+    railway: "Voie ferrée",
+    water: "Cours d'eau",
+    urban: "Zone urbanisée",
+  },
+  en: {
+    highway: "Road",
+    railway: "Railway",
+    water: "Waterway",
+    urban: "Built-up area",
+  },
 };
 
-const BARRIER_SUBTYPE_LABELS_FR: Record<string, string> = {
-  motorway: "Autoroute",
-  trunk: "Voie rapide",
-  primary: "Route principale",
-  secondary: "Route secondaire",
-  tertiary: "Route locale",
-  rail: "Voie ferrée",
-  light_rail: "Train léger",
-  narrow_gauge: "Voie étroite",
-  river: "Rivière",
-  canal: "Canal",
-  water: "Plan d'eau",
-  residential: "Zone résidentielle",
-  industrial: "Zone industrielle",
-  commercial: "Zone commerciale",
+const BARRIER_SUBTYPE_LABELS: Record<Lang, Record<string, string>> = {
+  fr: {
+    motorway: "Autoroute",
+    trunk: "Voie rapide",
+    primary: "Route principale",
+    secondary: "Route secondaire",
+    tertiary: "Route locale",
+    rail: "Voie ferrée",
+    light_rail: "Train léger",
+    narrow_gauge: "Voie étroite",
+    river: "Rivière",
+    canal: "Canal",
+    water: "Plan d'eau",
+    residential: "Zone résidentielle",
+    industrial: "Zone industrielle",
+    commercial: "Zone commerciale",
+  },
+  en: {
+    motorway: "Motorway",
+    trunk: "Trunk road",
+    primary: "Primary road",
+    secondary: "Secondary road",
+    tertiary: "Local road",
+    rail: "Railway",
+    light_rail: "Light rail",
+    narrow_gauge: "Narrow gauge",
+    river: "River",
+    canal: "Canal",
+    water: "Water body",
+    residential: "Residential area",
+    industrial: "Industrial area",
+    commercial: "Commercial area",
+  },
 };
 
 function barrierIcon(kind: string): LucideIcon {
@@ -127,6 +154,7 @@ interface SimResult {
 }
 
 export default function Home() {
+  const { lang, setLang, t } = useLang();
   const [mode, setMode] = useState<Mode>("real");
 
   // --- Real track state ---
@@ -276,7 +304,7 @@ export default function Home() {
       setSidebarOpen(false);
     } catch (e) {
       console.error("[sim] error:", e);
-      alert("Simulation failed: " + (e as Error).message);
+      alert(t("controls.simFailed", { msg: (e as Error).message }));
     }
   };
 
@@ -749,11 +777,11 @@ export default function Home() {
         <button
           type="button"
           onClick={() => setSidebarOpen(true)}
-          title="Show controls"
+          title={t("controls.show")}
           className="absolute left-3 top-3 z-30 flex items-center gap-2 px-3 h-9 rounded-sm bg-background/90 backdrop-blur-md border border-border shadow-xl text-[10px] font-mono uppercase tracking-widest text-primary hover:bg-primary/10 transition-colors"
         >
           <ChevronRight className="w-4 h-4" />
-          Controls
+          {t("controls.label")}
         </button>
       )}
 
@@ -769,14 +797,14 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setSidebarOpen(false)}
-              title="Hide controls"
+              title={t("controls.hide")}
               className="shrink-0 -mr-2 -mt-1 w-8 h-8 flex items-center justify-center rounded-sm text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
           </div>
           <p className="text-xs text-muted-foreground uppercase tracking-widest">
-            {mode === "sim" ? "Synthetic paths" : "Reconstructing paths"}
+            {mode === "sim" ? t("mode.subtitleSim") : t("mode.subtitleReal")}
           </p>
           {/* Mode toggle */}
           <div className="mt-4 grid grid-cols-2 gap-1 p-1 bg-background/40 border border-border rounded-sm">
@@ -791,7 +819,7 @@ export default function Home() {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {m === "real" ? "Real Tracks" : "Simulation"}
+                {m === "real" ? t("mode.real") : t("mode.sim")}
               </button>
             ))}
           </div>
@@ -801,7 +829,7 @@ export default function Home() {
           {mode === "real" ? (
             <>
               <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Species</Label>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t("controls.species")}</Label>
                 <Select
                   value={speciesId}
                   onValueChange={(val) => {
@@ -815,7 +843,7 @@ export default function Home() {
                   }}
                 >
                   <SelectTrigger className="bg-background/50 border-border font-mono text-sm">
-                    <SelectValue placeholder="Select species..." />
+                    <SelectValue placeholder={t("controls.selectSpecies")} />
                   </SelectTrigger>
                   <SelectContent className={theme === "dark" ? "dark" : ""}>
                     {speciesReq.data?.species?.map((s) => (
@@ -828,7 +856,7 @@ export default function Home() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Study</Label>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t("controls.study")}</Label>
                 <Select
                   value={studyId}
                   onValueChange={(val) => {
@@ -842,7 +870,7 @@ export default function Home() {
                   disabled={!speciesId}
                 >
                   <SelectTrigger className="bg-background/50 border-border font-mono text-sm">
-                    <SelectValue placeholder="Select study..." />
+                    <SelectValue placeholder={t("controls.selectStudy")} />
                   </SelectTrigger>
                   <SelectContent className={theme === "dark" ? "dark" : ""}>
                     {studiesReq.data?.studies?.map((s) => (
@@ -855,7 +883,7 @@ export default function Home() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Individual</Label>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t("controls.individual")}</Label>
                 <Select
                   value={individualId}
                   onValueChange={(val) => {
@@ -868,7 +896,7 @@ export default function Home() {
                   disabled={!studyId}
                 >
                   <SelectTrigger className="bg-background/50 border-border font-mono text-sm">
-                    <SelectValue placeholder="Select individual..." />
+                    <SelectValue placeholder={t("controls.selectIndividual")} />
                   </SelectTrigger>
                   <SelectContent className={theme === "dark" ? "dark" : ""}>
                     {individualsReq.data?.individuals?.map((s) => (
@@ -882,7 +910,7 @@ export default function Home() {
 
               <div className="space-y-4 pt-4 border-t border-border">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground flex justify-between">
-                  <span>Search Radius</span>
+                  <span>{t("controls.searchRadius")}</span>
                   <span className="text-primary">{radius}m</span>
                 </Label>
                 <Slider
@@ -905,7 +933,7 @@ export default function Home() {
                       : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:border-foreground/40"
                   }`}
                 >
-                  <span>Human Pressure</span>
+                  <span>{t("controls.humanPressure")}</span>
                   <span
                     className={`inline-block w-8 h-4 rounded-full relative transition-colors ${
                       showHumanPressure ? "bg-primary/60" : "bg-muted"
@@ -919,7 +947,7 @@ export default function Home() {
                   </span>
                 </button>
                 <p className="text-[10px] text-muted-foreground/60 leading-relaxed font-mono mt-2">
-                  Overlay potential human presence — trails, lifts, huts, roads &amp; settlements (OpenStreetMap).
+                  {t("controls.humanPressureHint")}
                 </p>
               </div>
 
@@ -930,17 +958,17 @@ export default function Home() {
                   className="w-full font-mono uppercase tracking-widest text-xs h-10"
                   variant="outline"
                 >
-                  Load Track
+                  {t("controls.loadTrack")}
                 </Button>
               </div>
             </>
           ) : (
             <>
               <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Species</Label>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t("controls.species")}</Label>
                 <Select value={simSpeciesId} onValueChange={setSimSpeciesId}>
                   <SelectTrigger className="bg-background/50 border-border font-mono text-sm">
-                    <SelectValue placeholder="Select species..." />
+                    <SelectValue placeholder={t("controls.selectSpecies")} />
                   </SelectTrigger>
                   <SelectContent className={theme === "dark" ? "dark" : ""}>
                     {simSpeciesReq.data?.species?.map((s) => (
@@ -959,7 +987,7 @@ export default function Home() {
 
               <div className="space-y-4 pt-4 border-t border-border">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground flex justify-between">
-                  <span>Duration</span>
+                  <span>{t("controls.duration")}</span>
                   <span className="text-primary">{simDurationHours}h</span>
                 </Label>
                 <Slider
@@ -972,8 +1000,8 @@ export default function Home() {
                 />
                 <div className="flex justify-between text-[9px] font-mono text-muted-foreground/60 uppercase tracking-wider">
                   <span>6h</span>
-                  <span>1 week</span>
-                  <span>1 month</span>
+                  <span>{t("controls.durationWeek")}</span>
+                  <span>{t("controls.durationMonth")}</span>
                 </div>
               </div>
 
@@ -987,7 +1015,7 @@ export default function Home() {
                       : "bg-transparent text-muted-foreground border-border hover:text-foreground hover:border-foreground/40"
                   }`}
                 >
-                  <span>Human Pressure Heatmap</span>
+                  <span>{t("controls.humanPressureHeatmap")}</span>
                   <span
                     className={`inline-block w-8 h-4 rounded-full relative transition-colors ${
                       showHumanPressure ? "bg-primary/60" : "bg-muted"
@@ -1001,12 +1029,12 @@ export default function Home() {
                   </span>
                 </button>
                 <p className="text-[10px] text-muted-foreground/60 leading-relaxed font-mono mt-2">
-                  Density of roads &amp; built-up areas (OSM). Generate a track first to populate the data.
+                  {t("controls.humanPressureHintSim")}
                 </p>
               </div>
 
               <div className="pt-4 border-t border-border space-y-3">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Start Location</Label>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">{t("controls.startLocation")}</Label>
                 <button
                   type="button"
                   onClick={() => setPlacing((p) => !p)}
@@ -1018,7 +1046,7 @@ export default function Home() {
                 >
                   <span className="flex items-center gap-2">
                     <Crosshair className="w-3 h-3" />
-                    {placing ? "Click on map…" : simStart ? "Re-place individual" : "Place individual"}
+                    {placing ? t("controls.clickOnMap") : simStart ? t("controls.replaceIndividual") : t("controls.placeIndividual")}
                   </span>
                 </button>
                 {simStart && (
@@ -1035,20 +1063,20 @@ export default function Home() {
                   className="w-full font-mono uppercase tracking-widest text-xs h-10 bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-primary-foreground transition-all"
                 >
                   <Sparkles className="w-3 h-3 mr-2" />
-                  {simulateMutation.isPending ? "Simulating…" : "Generate Track"}
+                  {simulateMutation.isPending ? t("controls.simulating") : t("controls.generateTrack")}
                 </Button>
                 {simResult && (
                   <div className="text-[10px] font-mono text-muted-foreground space-y-1 pt-2 border-t border-border">
                     <div className="flex justify-between">
-                      <span>Points</span>
+                      <span>{t("controls.points")}</span>
                       <span className="text-primary">{simResult.points.length}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>OSM barriers</span>
+                      <span>{t("controls.osmBarriers")}</span>
                       <span className="text-primary">{simResult.barriers.length}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>ID</span>
+                      <span>{t("controls.id")}</span>
                       <span>{simResult.individualId}</span>
                     </div>
                     {simResult.warnings.map((w, i) => (
@@ -1064,11 +1092,11 @@ export default function Home() {
         <div className="p-6 border-t border-border text-[10px] text-muted-foreground/60 leading-relaxed font-mono">
           {mode === "sim" ? (
             <p>
-              These are <span className="text-amber-700 dark:text-amber-400/90">simulated plausible movements</span>, not observed animal locations. Generated via biased random walk over a habitat gradient and live OpenStreetMap barriers.
+              {t("disclaimer.sim.prefix")}<span className="text-amber-700 dark:text-amber-400/90">{t("disclaimer.sim.highlight")}</span>{t("disclaimer.sim.suffix")}
             </p>
           ) : (
             <p>
-              AnimalView reconstructs possible visual encounters along animal movement tracks. This is not proof of what the animal saw — it is a spatial approximation using public street-level imagery near recorded GPS points.
+              {t("disclaimer.real")}
             </p>
           )}
         </div>
@@ -1257,78 +1285,65 @@ export default function Home() {
         {mode === "sim" && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-amber-400/10 border border-amber-400/30 backdrop-blur-md rounded-sm text-[10px] font-mono uppercase tracking-widest text-amber-300">
             <span className="pointer-events-none">
-              Simulated plausible movements · not observed animal locations
+              {t("banner.simMovements")}
             </span>
             <Dialog>
               <DialogTrigger asChild>
                 <button
                   type="button"
                   className="ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-sm border border-amber-400/40 hover:bg-amber-400/20 transition-colors"
-                  aria-label="About this simulation"
+                  aria-label={t("about.aria")}
                 >
                   <Info className="w-3 h-3" />
-                  About
+                  {t("about.button")}
                 </button>
               </DialogTrigger>
               <DialogContent className={`max-w-2xl max-h-[80vh] overflow-y-auto ${theme === "dark" ? "dark" : ""}`}>
                 <DialogHeader>
                   <DialogTitle className="font-mono uppercase tracking-widest text-primary">
-                    TaxonPath — Simulation Method
+                    {t("about.title")}
                   </DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 text-sm text-muted-foreground leading-relaxed font-mono">
                   <p>
-                    TaxonPath generates <span className="text-foreground">plausible</span> animal
-                    trajectories — not predictions, not observations. The goal is to illustrate
-                    how a given species <span className="text-foreground">might</span> move
-                    through a landscape given its ecology and the real human barriers around it.
+                    {t("about.intro.1")}<span className="text-foreground">{t("about.intro.plausible")}</span>{t("about.intro.2")}<span className="text-foreground">{t("about.intro.might")}</span>{t("about.intro.3")}
                   </p>
 
                   <div>
                     <h3 className="text-foreground text-xs uppercase tracking-widest mb-2">
-                      1 · Species profiles
+                      {t("about.s1.title")}
                     </h3>
                     <p>
-                      Five hand-tuned profiles (red fox, roe deer, Hermann's tortoise, wild boar,
-                      grey wolf). Each profile encodes step length, max daily distance, barrier
-                      sensitivity, and an exploration level — calibrated from published home-range
-                      and dispersal literature.
+                      {t("about.s1.body")}
                     </p>
                   </div>
 
                   <div>
                     <h3 className="text-foreground text-xs uppercase tracking-widest mb-2">
-                      2 · Habitat suitability
+                      {t("about.s2.title")}
                     </h3>
                     <p>
-                      A continuous, deterministic procedural field (smooth sin/cos gradient
-                      seeded on coordinates) acts as a proxy for habitat quality in the absence
-                      of a global land-cover layer. Values range 0–1 and bias the walk toward
-                      high-suitability pixels.
+                      {t("about.s2.body")}
                     </p>
                   </div>
 
                   <div>
                     <h3 className="text-foreground text-xs uppercase tracking-widest mb-2">
-                      3 · Real-world barriers (OpenStreetMap)
+                      {t("about.s3.title")}
                     </h3>
                     <p>
-                      For each run we query the live Overpass API around the start point and
-                      pull three feature classes: <span className="text-red-600 dark:text-red-400">major roads</span>,{" "}
-                      <span className="text-blue-600 dark:text-blue-400">rivers & water bodies</span>, and{" "}
-                      <span className="text-amber-700 dark:text-amber-400">urban / built-up land use</span>. Results
-                      are cached 30 min in memory. Each candidate step is penalized by proximity
-                      to nearby barriers, weighted by the species' sensitivity.
+                      {t("about.s3.body.1")}<span className="text-red-600 dark:text-red-400">{t("about.s3.roads")}</span>{t("about.s3.mid1")}
+                      <span className="text-blue-600 dark:text-blue-400">{t("about.s3.water")}</span>{t("about.s3.mid2")}
+                      <span className="text-amber-700 dark:text-amber-400">{t("about.s3.urban")}</span>{t("about.s3.body.2")}
                     </p>
                   </div>
 
                   <div>
                     <h3 className="text-foreground text-xs uppercase tracking-widest mb-2">
-                      4 · Biased correlated random walk
+                      {t("about.s4.title")}
                     </h3>
                     <p>
-                      At every step the simulator draws 8 candidate moves around the current
-                      heading. Each candidate is scored by:
+                      {t("about.s4.body.1")}
                     </p>
                     <pre className="text-[11px] bg-background/60 border border-border rounded-sm p-3 my-2 text-foreground overflow-x-auto">
 {`score = w_habitat · habitat(p)
@@ -1337,35 +1352,29 @@ export default function Home() {
       + w_explore · noise`}
                     </pre>
                     <p>
-                      One of the top candidates is selected (slightly stochastic). Weights come
-                      from the species profile, so a wolf cruises in long correlated bouts while
-                      a tortoise tumbles in tight loops. The PRNG is seeded (mulberry32) so the
-                      same inputs always reproduce the same track.
+                      {t("about.s4.body.2")}
                     </p>
                   </div>
 
                   <div>
                     <h3 className="text-foreground text-xs uppercase tracking-widest mb-2">
-                      5 · Timing
+                      {t("about.s5.title")}
                     </h3>
                     <p>
-                      Step count is capped by the species' max daily distance and by simulation
-                      duration (max 400 points). Timestamps are spaced evenly across the
-                      requested window.
+                      {t("about.s5.body")}
                     </p>
                   </div>
 
                   <div className="pt-2 border-t border-border">
                     <h3 className="text-amber-700 dark:text-amber-300 text-xs uppercase tracking-widest mb-2">
-                      Limits & honest caveats
+                      {t("about.limits.title")}
                     </h3>
                     <ul className="list-disc list-inside space-y-1 text-xs">
-                      <li>The habitat field is procedural, not real land-cover.</li>
-                      <li>OSM barriers are crowd-sourced; rural areas may be sparse.</li>
-                      <li>No weather, no season, no inter-individual behaviour.</li>
+                      <li>{t("about.limits.1")}</li>
+                      <li>{t("about.limits.2")}</li>
+                      <li>{t("about.limits.3")}</li>
                       <li>
-                        Output is illustrative — never use it as evidence of where a real animal
-                        went.
+                        {t("about.limits.4")}
                       </li>
                     </ul>
                   </div>
@@ -1375,12 +1384,28 @@ export default function Home() {
           </div>
         )}
 
-        {/* Top-right controls: theme + basemap */}
+        {/* Top-right controls: language + theme + basemap */}
         <div className="absolute top-4 right-4 flex items-center gap-2">
+          <div className="flex bg-background/85 backdrop-blur-md border border-border rounded-sm overflow-hidden shadow-lg">
+            {(["fr", "en"] as Lang[]).map((l) => (
+              <button
+                key={l}
+                type="button"
+                onClick={() => setLang(l)}
+                className={`px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-widest transition-colors ${
+                  lang === l
+                    ? "bg-primary/20 text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            title={theme === "dark" ? "Passer en mode clair" : "Passer en mode sombre"}
+            title={theme === "dark" ? t("theme.toLight") : t("theme.toDark")}
             className="flex items-center justify-center h-[31px] w-[31px] bg-background/85 backdrop-blur-md border border-border rounded-sm text-muted-foreground hover:text-primary transition-colors shadow-lg"
           >
             {theme === "dark" ? (
@@ -1401,7 +1426,7 @@ export default function Home() {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {b}
+                {t(`basemap.${b}`)}
               </button>
             ))}
           </div>
@@ -1410,7 +1435,7 @@ export default function Home() {
         {/* Placement hint */}
         {mode === "sim" && placing && (
           <div className="absolute top-16 left-1/2 -translate-x-1/2 px-4 py-2 bg-primary/15 border border-primary/40 backdrop-blur-md rounded-sm text-[10px] font-mono uppercase tracking-widest text-primary pointer-events-none">
-            Click anywhere on the map to drop the individual
+            {t("banner.placeIndividual")}
           </div>
         )}
 
@@ -1422,7 +1447,7 @@ export default function Home() {
                 {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-1" />}
               </Button>
               <div className="flex flex-col ml-2">
-                <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Speed</span>
+                <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">{t("player.speed")}</span>
                 <div className="flex gap-1 mt-1">
                   {[1, 5, 20, 100].map((s) => (
                     <button
@@ -1454,7 +1479,7 @@ export default function Home() {
                 {orderedMatches.map((o, i) => (
                   <button
                     key={o.match.imageId ?? i}
-                    title={`Photo ${i + 1}`}
+                    title={t("player.photo", { n: i + 1 })}
                     onClick={() => goToPhoto(i)}
                     className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full transition-colors ${
                       i === currentPhotoIndex
@@ -1502,9 +1527,9 @@ export default function Home() {
               <div
                 className="flex items-center gap-2.5 border-l border-border pl-4"
                 title={`${weather.label}${
-                  weather.windSpeedKmh != null ? ` · wind ${Math.round(weather.windSpeedKmh)} km/h` : ""
+                  weather.windSpeedKmh != null ? ` · ${t("weather.windTip", { value: Math.round(weather.windSpeedKmh) })}` : ""
                 }${
-                  weather.precipitationMm != null ? ` · precip ${weather.precipitationMm} mm` : ""
+                  weather.precipitationMm != null ? ` · ${t("weather.precipTip", { value: weather.precipitationMm })}` : ""
                 }`}
               >
                 <WeatherIcon className="w-6 h-6 text-primary shrink-0" />
@@ -1527,7 +1552,7 @@ export default function Home() {
         <div className="p-6 border-b border-border flex items-center gap-2 text-primary">
           <Info className="w-4 h-4" />
           <h2 className="text-xs uppercase tracking-widest font-mono font-bold">
-            {mode === "sim" ? "Ecology Readout" : "Candidate Context"}
+            {mode === "sim" ? t("ctx.ecologyReadout") : t("ctx.candidateContext")}
           </h2>
         </div>
 
@@ -1538,24 +1563,22 @@ export default function Home() {
                 disabled={!trackReq.data?.points || matchImageryMutation.isPending}
                 className="w-full font-mono uppercase tracking-widest text-xs h-10 bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-primary-foreground transition-all"
               >
-                {matchImageryMutation.isPending ? "Searching..." : "Find Context Imagery"}
+                {matchImageryMutation.isPending ? t("ctx.searching") : t("ctx.findImagery")}
               </Button>
               {!matchImageryMutation.isPending &&
                 matchImageryMutation.isSuccess &&
                 imageryMatches.length === 0 && (
                   <p className="text-[10px] text-muted-foreground/70 leading-relaxed font-mono">
-                    No geotagged photos found near this track. Many wild
-                    corridors have little or no public imagery — try a larger
-                    search radius or a different individual.
+                    {t("ctx.noPhotos")}
                   </p>
                 )}
               {!matchImageryMutation.isPending &&
                 matchImageryMutation.isSuccess &&
                 imageryMatches.length > 0 && (
                   <p className="text-[10px] text-primary/80 leading-relaxed font-mono">
-                    {imageryMatches.length} context image
-                    {imageryMatches.length === 1 ? "" : "s"} found along the
-                    track.
+                    {imageryMatches.length === 1
+                      ? t("ctx.imagesFound", { count: imageryMatches.length })
+                      : t("ctx.imagesFoundPlural", { count: imageryMatches.length })}
                   </p>
                 )}
           </div>
@@ -1566,7 +1589,7 @@ export default function Home() {
               <div className="space-y-4 font-mono text-[11px] text-muted-foreground/80">
                 <div className="space-y-3">
                   <div className="flex justify-between border-b border-border/50 pb-2">
-                    <span className="uppercase tracking-widest text-muted-foreground">Habitat score</span>
+                    <span className="uppercase tracking-widest text-muted-foreground">{t("eco.habitatScore")}</span>
                     <span className="text-primary">{(currentPoint.habitatScore ?? 0).toFixed(2)}</span>
                   </div>
                   <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -1578,7 +1601,7 @@ export default function Home() {
                 </div>
                 <div className="space-y-3">
                   <div className="flex justify-between border-b border-border/50 pb-2">
-                    <span className="uppercase tracking-widest text-muted-foreground">Barrier risk</span>
+                    <span className="uppercase tracking-widest text-muted-foreground">{t("eco.barrierRisk")}</span>
                     <span className="text-red-600 dark:text-red-300">{(currentPoint.barrierRisk ?? 0).toFixed(2)}</span>
                   </div>
                   <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -1590,7 +1613,7 @@ export default function Home() {
                 </div>
                 <div className="p-4 bg-muted/30 border border-border/50 rounded-sm mt-8">
                   <p className="text-[10px] font-mono leading-relaxed text-muted-foreground">
-                    Step {currentTimeIndex + 1} of {simResult.points.length}. Habitat is derived from a procedural suitability gradient; barrier risk uses live OpenStreetMap roads, water and built-up areas near the start point.
+                    {t("eco.step", { current: currentTimeIndex + 1, total: simResult.points.length })}
                   </p>
                 </div>
               </div>
@@ -1600,7 +1623,7 @@ export default function Home() {
                   <Sparkles className="w-4 h-4 text-muted-foreground" />
                 </div>
                 <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground max-w-[200px]">
-                  {simStart ? "Generate a track to see ecology" : "Place an individual on the map to begin"}
+                  {simStart ? t("eco.generatePrompt") : t("eco.placePrompt")}
                 </p>
               </div>
             )
@@ -1610,12 +1633,12 @@ export default function Home() {
                 {activeMatch.previewUrl ? (
                   <img
                     src={activeMatch.previewUrl}
-                    alt="Candidate context"
+                    alt={t("ctx.candidateAlt")}
                     className="object-cover w-full h-full opacity-80 mix-blend-screen grayscale-[20%] contrast-125"
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full text-muted-foreground font-mono text-xs">
-                    No Image Preview
+                    {t("ctx.noPreview")}
                   </div>
                 )}
                 <div className="absolute inset-0 ring-1 ring-inset ring-white/10 pointer-events-none" />
@@ -1626,7 +1649,7 @@ export default function Home() {
                   <>
                     <button
                       type="button"
-                      aria-label="Previous photo"
+                      aria-label={t("ctx.prevPhoto")}
                       disabled={currentPhotoIndex <= 0}
                       onClick={() => goToPhoto((currentPhotoIndex < 0 ? 1 : currentPhotoIndex) - 1)}
                       className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-full bg-black/60 backdrop-blur-sm border border-white/10 text-white/90 hover:bg-primary hover:text-primary-foreground transition-all disabled:opacity-30 disabled:pointer-events-none"
@@ -1635,7 +1658,7 @@ export default function Home() {
                     </button>
                     <button
                       type="button"
-                      aria-label="Next photo"
+                      aria-label={t("ctx.nextPhoto")}
                       disabled={currentPhotoIndex >= orderedMatches.length - 1}
                       onClick={() => goToPhoto(currentPhotoIndex < 0 ? 0 : currentPhotoIndex + 1)}
                       className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-full bg-black/60 backdrop-blur-sm border border-white/10 text-white/90 hover:bg-primary hover:text-primary-foreground transition-all disabled:opacity-30 disabled:pointer-events-none"
@@ -1657,7 +1680,7 @@ export default function Home() {
                     className="h-9 px-3 font-mono text-[10px] uppercase tracking-widest gap-1"
                   >
                     <ChevronLeft className="w-4 h-4" />
-                    Préc.
+                    {t("ctx.prev")}
                   </Button>
                   <span className="text-[10px] font-mono text-muted-foreground tabular-nums tracking-widest">
                     {currentPhotoIndex >= 0 ? currentPhotoIndex + 1 : "–"} / {orderedMatches.length}
@@ -1670,7 +1693,7 @@ export default function Home() {
                     onClick={() => goToPhoto(currentPhotoIndex < 0 ? 0 : currentPhotoIndex + 1)}
                     className="h-9 px-3 font-mono text-[10px] uppercase tracking-widest gap-1"
                   >
-                    Suiv.
+                    {t("ctx.next")}
                     <ChevronRight className="w-4 h-4" />
                   </Button>
                 </div>
@@ -1678,18 +1701,18 @@ export default function Home() {
 
               <div className="space-y-3 font-mono text-[11px] text-muted-foreground/80">
                 <div className="flex justify-between border-b border-border/50 pb-2">
-                  <span className="uppercase tracking-widest text-muted-foreground">Confidence</span>
+                  <span className="uppercase tracking-widest text-muted-foreground">{t("ctx.confidence")}</span>
                   <span className={activeMatch.confidence === "high" ? "text-primary" : ""}>
                     {activeMatch.confidence}
                   </span>
                 </div>
                 <div className="flex justify-between border-b border-border/50 pb-2">
-                  <span className="uppercase tracking-widest text-muted-foreground">Distance</span>
-                  <span>{Math.round(activeMatch.distanceM)} meters</span>
+                  <span className="uppercase tracking-widest text-muted-foreground">{t("ctx.distance")}</span>
+                  <span>{t("ctx.meters", { count: Math.round(activeMatch.distanceM) })}</span>
                 </div>
                 {activeMatch.imageDate && (
                   <div className="flex justify-between border-b border-border/50 pb-2">
-                    <span className="uppercase tracking-widest text-muted-foreground">Image Date</span>
+                    <span className="uppercase tracking-widest text-muted-foreground">{t("ctx.imageDate")}</span>
                     <span>{activeMatch.imageDate}</span>
                   </div>
                 )}
@@ -1700,7 +1723,9 @@ export default function Home() {
                   <div className="flex items-center gap-2 mb-3">
                     <WeatherIcon className="w-3.5 h-3.5 text-primary" />
                     <span className="text-[9px] font-mono uppercase tracking-widest text-primary">
-                      Météo au passage du {selectedSpecies?.commonName ?? "animal"}
+                      {selectedSpecies?.commonName
+                        ? t("weather.title", { name: selectedSpecies.commonName })
+                        : t("weather.titleFallback")}
                     </span>
                   </div>
                   <div className="flex items-baseline gap-2 mb-3">
@@ -1714,9 +1739,9 @@ export default function Home() {
                   <div className="space-y-2 font-mono text-[11px] text-muted-foreground/80">
                     {currentPoint?.timestamp && (
                       <div className="flex justify-between border-b border-border/50 pb-2">
-                        <span className="uppercase tracking-widest text-muted-foreground">Date</span>
+                        <span className="uppercase tracking-widest text-muted-foreground">{t("weather.date")}</span>
                         <span>
-                          {new Date(currentPoint.timestamp).toLocaleString("fr-FR", {
+                          {new Date(currentPoint.timestamp).toLocaleString(lang === "fr" ? "fr-FR" : "en-US", {
                             day: "2-digit",
                             month: "short",
                             year: "numeric",
@@ -1730,19 +1755,19 @@ export default function Home() {
                     )}
                     {weather.windSpeedKmh != null && (
                       <div className="flex justify-between border-b border-border/50 pb-2">
-                        <span className="uppercase tracking-widest text-muted-foreground">Vent</span>
+                        <span className="uppercase tracking-widest text-muted-foreground">{t("weather.wind")}</span>
                         <span>{Math.round(weather.windSpeedKmh)} km/h</span>
                       </div>
                     )}
                     {weather.precipitationMm != null && (
                       <div className="flex justify-between border-b border-border/50 pb-2">
-                        <span className="uppercase tracking-widest text-muted-foreground">Précipitations</span>
+                        <span className="uppercase tracking-widest text-muted-foreground">{t("weather.precip")}</span>
                         <span>{weather.precipitationMm} mm</span>
                       </div>
                     )}
                   </div>
                   <p className="text-[10px] font-mono leading-relaxed text-muted-foreground/60 mt-3">
-                    Données de réanalyse ERA5 (Open-Meteo) à l'heure et au lieu exacts du passage.
+                    {t("weather.source")}
                   </p>
                 </div>
               )}
@@ -1751,16 +1776,16 @@ export default function Home() {
                 (() => {
                   const b = nearestBarrier.barrier;
                   const BarrierIcon = barrierIcon(b.kind);
-                  const kindLabel = BARRIER_KIND_LABELS_FR[b.kind] ?? b.kind;
+                  const kindLabel = BARRIER_KIND_LABELS[lang][b.kind] ?? b.kind;
                   const detailLabel = b.subtype
-                    ? BARRIER_SUBTYPE_LABELS_FR[b.subtype] ?? b.subtype
+                    ? BARRIER_SUBTYPE_LABELS[lang][b.subtype] ?? b.subtype
                     : null;
                   return (
                     <div className="p-4 bg-muted/30 border border-border/50 rounded-sm mt-6">
                       <div className="flex items-center gap-2 mb-3">
                         <BarrierIcon className="w-3.5 h-3.5 text-red-600 dark:text-red-300" />
                         <span className="text-[9px] font-mono uppercase tracking-widest text-red-600 dark:text-red-300">
-                          Rupture de continuité
+                          {t("barrier.title")}
                         </span>
                       </div>
                       <div className="flex items-baseline gap-2 mb-3">
@@ -1775,17 +1800,17 @@ export default function Home() {
                       </div>
                       <div className="space-y-2 font-mono text-[11px] text-muted-foreground/80">
                         <div className="flex justify-between border-b border-border/50 pb-2">
-                          <span className="uppercase tracking-widest text-muted-foreground">Type</span>
+                          <span className="uppercase tracking-widest text-muted-foreground">{t("barrier.type")}</span>
                           <span>{kindLabel}</span>
                         </div>
                         {detailLabel && (
                           <div className="flex justify-between border-b border-border/50 pb-2">
-                            <span className="uppercase tracking-widest text-muted-foreground">Détail</span>
+                            <span className="uppercase tracking-widest text-muted-foreground">{t("barrier.detail")}</span>
                             <span>{detailLabel}</span>
                           </div>
                         )}
                         <div className="flex justify-between border-b border-border/50 pb-2">
-                          <span className="uppercase tracking-widest text-muted-foreground">Distance</span>
+                          <span className="uppercase tracking-widest text-muted-foreground">{t("barrier.distance")}</span>
                           <span
                             className={nearestBarrier.distanceM < 200 ? "text-red-600 dark:text-red-300" : ""}
                           >
@@ -1796,7 +1821,7 @@ export default function Home() {
                         </div>
                       </div>
                       <p className="text-[10px] font-mono leading-relaxed text-muted-foreground/60 mt-3">
-                        Infrastructure humaine la plus proche (OpenStreetMap) — obstacle potentiel à la libre circulation de l'animal.
+                        {t("barrier.note")}
                       </p>
                     </div>
                   );
@@ -1806,17 +1831,19 @@ export default function Home() {
                 <div className="flex items-center gap-2 mb-3">
                   <Sparkles className="w-3 h-3 text-primary" />
                   <span className="text-[9px] font-mono uppercase tracking-widest text-primary">
-                    Through {selectedSpecies?.commonName ?? "its"} eyes
+                    {selectedSpecies?.commonName
+                      ? t("ctx.throughEyes", { name: selectedSpecies.commonName })
+                      : t("ctx.throughEyesFallback")}
                   </span>
                 </div>
                 {narrativeStatus === "loading" && (
                   <p className="text-[11px] font-mono text-muted-foreground animate-pulse">
-                    Reading the scene…
+                    {t("ctx.readingScene")}
                   </p>
                 )}
                 {narrativeStatus === "error" && (
                   <p className="text-[11px] font-mono text-muted-foreground">
-                    Could not interpret this scene.
+                    {t("ctx.sceneError")}
                   </p>
                 )}
                 {narrativeStatus === "idle" && narrative && (
@@ -1828,7 +1855,7 @@ export default function Home() {
 
               <div className="p-3 bg-muted/30 border border-border/50 rounded-sm mt-3">
                 <p className="text-[10px] font-mono leading-relaxed text-muted-foreground">
-                  AI interpretation of nearby street-level imagery within {Math.round(activeMatch.distanceM)} meters of the track — an imagined reading of the terrain, not the exact animal view.
+                  {t("ctx.aiInterpretation", { count: Math.round(activeMatch.distanceM) })}
                 </p>
               </div>
             </div>
@@ -1838,7 +1865,7 @@ export default function Home() {
                 <div className="w-1 h-1 bg-muted-foreground rounded-full animate-pulse" />
               </div>
               <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground max-w-[200px]">
-                {trackReq.data?.points ? "Play track to scan for nearby visual context" : "Load a track to begin"}
+                {trackReq.data?.points ? t("ctx.scanPrompt") : t("ctx.loadPrompt")}
               </p>
             </div>
           )}
