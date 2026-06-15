@@ -762,6 +762,24 @@ export default function Home() {
             attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics",
             maxzoom: 19,
           },
+          "esri-transportation": {
+            type: "raster",
+            tiles: [
+              "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
+            ],
+            tileSize: 256,
+            maxzoom: 19,
+            attribution: "Roads © Esri, HERE, Garmin, OpenStreetMap contributors",
+          },
+          "osm-trails": {
+            type: "raster",
+            tiles: [
+              "https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png",
+            ],
+            tileSize: 256,
+            maxzoom: 18,
+            attribution: "Hiking trails © waymarkedtrails.org, OpenStreetMap contributors",
+          },
           "esri-labels": {
             type: "raster",
             tiles: [
@@ -773,6 +791,18 @@ export default function Home() {
         },
         layers: [
           { id: "esri-satellite", type: "raster", source: "esri-satellite" },
+          {
+            id: "osm-trails",
+            type: "raster",
+            source: "osm-trails",
+            paint: { "raster-opacity": 0.9 },
+          },
+          {
+            id: "esri-transportation",
+            type: "raster",
+            source: "esri-transportation",
+            paint: { "raster-opacity": 0.9 },
+          },
           {
             id: "esri-labels",
             type: "raster",
