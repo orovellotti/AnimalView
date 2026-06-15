@@ -692,8 +692,14 @@ export default function Home() {
     // Prefer the closest available image within the user's search radius (with a
     // small floor) so context imagery tracks the animal as it moves.
     const maxDistance = Math.max(radius, 1500);
-    for (const match of imageryMatches) {
-      if (match.imageLon && match.imageLat) {
+    // Auto-follow walks terrain/ground imagery only — GBIF sightings live in
+    // their own dedicated panel section and are browsed deliberately. Fall back
+    // to all matches when no terrain imagery exists so the panel is never empty.
+    const pool = imageryMatches.some((m) => m.provider !== "gbif")
+      ? imageryMatches.filter((m) => m.provider !== "gbif")
+      : imageryMatches;
+    for (const match of pool) {
+      if (match.imageLon != null && match.imageLat != null) {
         const matchPt = turf.point([match.imageLon, match.imageLat]);
         const dist = turf.distance(pt, matchPt, { units: "meters" });
         if (dist < nearestDistance) {
@@ -734,21 +740,36 @@ export default function Home() {
     return withIdx;
   }, [mode, activePoints, imageryMatches]);
 
+  // GBIF entries are real naturalist photos OF the species near the track,
+  // not ground/terrain views of where it walked. They get their own dedicated
+  // section, so the stepper + "all photos" grid only walk terrain imagery.
+  const terrainMatches = useMemo(
+    () => orderedMatches.filter((o) => o.match.provider !== "gbif"),
+    [orderedMatches],
+  );
+  const gbifMatches = useMemo(
+    () => orderedMatches.filter((o) => o.match.provider === "gbif"),
+    [orderedMatches],
+  );
+
   const currentPhotoIndex = useMemo(() => {
     if (!activeMatch) return -1;
     // Match by object reference: imageId is undefined for some providers
     // (e.g. Street View), so comparing imageId would collapse all of them
     // onto the first entry and freeze the stepper.
-    return orderedMatches.findIndex((o) => o.match === activeMatch);
-  }, [orderedMatches, activeMatch]);
+    return terrainMatches.findIndex((o) => o.match === activeMatch);
+  }, [terrainMatches, activeMatch]);
 
-  const goToPhoto = (idx: number) => {
-    if (idx < 0 || idx >= orderedMatches.length) return;
-    const target = orderedMatches[idx];
+  const goToMatch = (target: (typeof orderedMatches)[number]) => {
     manualPhotoRef.current = true;
     setIsPlaying(false);
     setCurrentTimeIndex(target.pointIndex);
     setActiveMatch(target.match);
+  };
+
+  const goToPhoto = (idx: number) => {
+    if (idx < 0 || idx >= terrainMatches.length) return;
+    goToMatch(terrainMatches[idx]);
   };
 
   const togglePlay = () => {
@@ -1588,9 +1609,9 @@ export default function Home() {
                     width: `${activePoints?.length ? (currentTimeIndex / activePoints.length) * 100 : 0}%`,
                   }}
                 />
-                {orderedMatches.map((o, i) => (
+                {terrainMatches.map((o, i) => (
                   <button
-                    key={o.match.imageId ?? i}
+                    key={`${o.match.provider}:${o.match.imageId ?? o.match.panoId ?? i}`}
                     title={t("player.photo", { n: i + 1 })}
                     onClick={() => goToPhoto(i)}
                     className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full transition-colors ${
@@ -1606,7 +1627,7 @@ export default function Home() {
               </div>
             </div>
 
-            {mode === "real" && orderedMatches.length > 0 && (
+            {mode === "real" && terrainMatches.length > 0 && (
               <div className="flex items-center gap-1.5 border-l border-border pl-4">
                 <Button
                   size="icon"
@@ -1620,14 +1641,14 @@ export default function Home() {
                 <div className="flex flex-col items-center min-w-[52px]">
                   <Camera className="w-3 h-3 text-muted-foreground mb-0.5" />
                   <span className="text-[10px] font-mono text-primary tabular-nums">
-                    {currentPhotoIndex >= 0 ? currentPhotoIndex + 1 : "–"}/{orderedMatches.length}
+                    {currentPhotoIndex >= 0 ? currentPhotoIndex + 1 : "–"}/{terrainMatches.length}
                   </span>
                 </div>
                 <Button
                   size="icon"
                   variant="ghost"
                   className="h-8 w-8 rounded-full"
-                  disabled={currentPhotoIndex >= orderedMatches.length - 1}
+                  disabled={currentPhotoIndex >= terrainMatches.length - 1}
                   onClick={() => goToPhoto(currentPhotoIndex < 0 ? 0 : currentPhotoIndex + 1)}
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -1759,7 +1780,7 @@ export default function Home() {
                 <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 backdrop-blur-sm rounded-sm border border-white/10 text-[9px] font-mono uppercase text-white/80 tracking-widest">
                   {activeMatch.provider}
                 </div>
-                {orderedMatches.length > 1 && (
+                {terrainMatches.length > 1 && (
                   <>
                     <button
                       type="button"
@@ -1773,7 +1794,7 @@ export default function Home() {
                     <button
                       type="button"
                       aria-label={t("ctx.nextPhoto")}
-                      disabled={currentPhotoIndex >= orderedMatches.length - 1}
+                      disabled={currentPhotoIndex >= terrainMatches.length - 1}
                       onClick={() => goToPhoto(currentPhotoIndex < 0 ? 0 : currentPhotoIndex + 1)}
                       className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-full bg-black/60 backdrop-blur-sm border border-white/10 text-white/90 hover:bg-primary hover:text-primary-foreground transition-all disabled:opacity-30 disabled:pointer-events-none"
                     >
@@ -1783,7 +1804,7 @@ export default function Home() {
                 )}
               </div>
 
-              {orderedMatches.length > 1 && (
+              {terrainMatches.length > 1 && (
                 <div className="flex items-center justify-between gap-2">
                   <Button
                     type="button"
@@ -1797,13 +1818,13 @@ export default function Home() {
                     {t("ctx.prev")}
                   </Button>
                   <span className="text-[10px] font-mono text-muted-foreground tabular-nums tracking-widest">
-                    {currentPhotoIndex >= 0 ? currentPhotoIndex + 1 : "–"} / {orderedMatches.length}
+                    {currentPhotoIndex >= 0 ? currentPhotoIndex + 1 : "–"} / {terrainMatches.length}
                   </span>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={currentPhotoIndex >= orderedMatches.length - 1}
+                    disabled={currentPhotoIndex >= terrainMatches.length - 1}
                     onClick={() => goToPhoto(currentPhotoIndex < 0 ? 0 : currentPhotoIndex + 1)}
                     className="h-9 px-3 font-mono text-[10px] uppercase tracking-widest gap-1"
                   >
@@ -1813,20 +1834,20 @@ export default function Home() {
                 </div>
               )}
 
-              {orderedMatches.length > 1 && (
+              {terrainMatches.length > 1 && (
                 <div className="space-y-2">
                   <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-                    {t("ctx.allPhotos", { count: orderedMatches.length })}
+                    {t("ctx.terrainPhotos", { count: terrainMatches.length })}
                   </p>
                   <div className="grid grid-cols-3 gap-1.5">
-                    {orderedMatches.map((o, idx) => (
+                    {terrainMatches.map((o, idx) => (
                       <button
                         type="button"
                         key={`${o.match.provider}:${o.match.imageId ?? o.match.panoId ?? idx}`}
                         onClick={() => goToPhoto(idx)}
                         aria-label={`${o.match.provider} ${idx + 1}`}
                         className={`relative aspect-square overflow-hidden rounded-sm border transition-all ${
-                          idx === currentPhotoIndex
+                          o.match === activeMatch
                             ? "border-primary ring-1 ring-primary"
                             : "border-border/60 hover:border-primary/60"
                         }`}
@@ -1845,6 +1866,50 @@ export default function Home() {
                         <span className="absolute bottom-0 left-0 right-0 px-1 py-0.5 bg-black/60 text-[7px] font-mono uppercase tracking-wider text-white/80 truncate">
                           {o.match.provider}
                         </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {gbifMatches.length > 0 && (
+                <div className="space-y-2 pt-3 border-t border-border/50">
+                  <div className="flex items-center gap-2">
+                    <Camera className="w-3 h-3 text-primary" />
+                    <span className="text-[9px] font-mono uppercase tracking-widest text-primary">
+                      {t("ctx.gbifTitle")}
+                    </span>
+                    <span className="text-[9px] font-mono text-muted-foreground tabular-nums">
+                      {gbifMatches.length}
+                    </span>
+                  </div>
+                  <p className="text-[9px] font-mono leading-relaxed text-muted-foreground/60">
+                    {t("ctx.gbifHint")}
+                  </p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {gbifMatches.map((o, idx) => (
+                      <button
+                        type="button"
+                        key={`gbif:${o.match.imageId ?? idx}`}
+                        onClick={() => goToMatch(o)}
+                        aria-label={`GBIF ${idx + 1}`}
+                        className={`relative aspect-square overflow-hidden rounded-sm border transition-all ${
+                          o.match === activeMatch
+                            ? "border-primary ring-1 ring-primary"
+                            : "border-border/60 hover:border-primary/60"
+                        }`}
+                      >
+                        {o.match.previewUrl ? (
+                          <img
+                            src={o.match.previewUrl}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            className="object-cover w-full h-full"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-muted" />
+                        )}
                       </button>
                     ))}
                   </div>

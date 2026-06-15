@@ -606,13 +606,17 @@ const ALLOWED_IMAGE_HOSTS = [
   "upload.wikimedia.org",
   "commons.wikimedia.org",
   "maps.googleapis.com",
+  "inaturalist-open-data.s3.amazonaws.com",
 ];
 function isAllowedImageHost(rawUrl: string): boolean {
   try {
     const u = new URL(rawUrl);
     if (u.protocol !== "https:") return false;
     return ALLOWED_IMAGE_HOSTS.some(
-      (h) => u.hostname === h || u.hostname.endsWith(".mapillary.com"),
+      (h) =>
+        u.hostname === h ||
+        u.hostname.endsWith(".mapillary.com") ||
+        u.hostname.endsWith(".inaturalist.org"),
     );
   } catch {
     return false;
