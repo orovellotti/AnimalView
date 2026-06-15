@@ -8,5 +8,6 @@
 - [Mapillary imagery](mapillary-imagery.md) — normalize token to `MLY|\d+|[0-9a-f]{32}` in code (paste artifacts cause "Error verifying the token"); bbox area hard-capped at 0.010 sq deg (clamp dLat/dLon or 500); alpine coverage genuinely sparse.
 - [Overpass mirrors](overpass-mirrors.md) — overpass-api.de ECONNREFUSED here; use overpass.openstreetmap.fr first; split dense alpine queries into parallel sparse+trails, cache partial results with short TTL.
 - [react-map-gl Source key](react-map-gl-source-key.md) — conditional <Source> siblings must each carry a stable `key`; without it toggling sources throws "source id changed" and crashes the map.
+- [Map crash from invalid coords](map-invalid-coords-crash.md) — sanitize track/sim points (finite, in-range lat/lon) before MapLibre Source/fitBounds; one bad row throws an uncaught error that blanks the map on id switch.
 - [AnimalView bilingual i18n](i18n-bilingual.md) — FR default, localStorage `animalview-lang`, useLang/t in i18n.tsx, toggle on map+landing.
 - [GBIF context imagery](gbif-imagery.md) — open key-less real-photo provider (taxonKey via species/match + occurrence geoDistance); needs scientificName in body; panel auto-follow must fall back to nearest match or activeMatch goes null and gallery vanishes.

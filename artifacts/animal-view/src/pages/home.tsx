@@ -356,12 +356,15 @@ export default function Home() {
   }, [studyId, individualsReq.data, individualId]);
 
   const handleFindImagery = async () => {
-    if (!trackReq.data?.points) return;
+    // Use the sanitized track points so malformed rows never reach the backend
+    // imagery matcher (a bad lat/lon would distort distance filtering or error).
+    const points = activePoints;
+    if (!points || points.length === 0) return;
     setImageryMatches([]);
     try {
       const res = await matchImageryMutation.mutateAsync({
         data: {
-          points: trackReq.data.points,
+          points,
           radius,
           providers: ["google", "mapillary", "wikimedia", "gbif"],
           scientificName: selectedSpecies?.scientificName,
@@ -403,8 +406,20 @@ export default function Home() {
   const activePoints = useMemo<
     { lat: number; lon: number; timestamp: string; habitatScore?: number; barrierRisk?: number }[] | null
   >(() => {
-    if (mode === "sim") return simResult?.points ?? null;
-    return trackReq.data?.points ?? null;
+    const raw = mode === "sim" ? simResult?.points : trackReq.data?.points;
+    if (!raw) return null;
+    // Drop any row whose coordinates aren't valid finite lat/lon. A single bad
+    // row (NaN/null/out-of-range) would otherwise feed [NaN, NaN] into the map
+    // GeoJSON source and fitBounds, throwing an uncaught MapLibre error that
+    // blanks the whole interface — which looked like a crash when switching IDs.
+    const clean = raw.filter(
+      (p) =>
+        Number.isFinite(p.lat) &&
+        Number.isFinite(p.lon) &&
+        Math.abs(p.lat) <= 90 &&
+        Math.abs(p.lon) <= 180,
+    );
+    return clean.length > 0 ? clean : null;
   }, [mode, simResult, trackReq.data]);
 
   const trackGeojson = useMemo(() => {
@@ -433,7 +448,12 @@ export default function Home() {
     }
   }, [activePoints]);
 
-  const currentPoint = activePoints?.[currentTimeIndex];
+  // Clamp the playhead into range: switching to a shorter track can momentarily
+  // leave currentTimeIndex past the end before the reset effect runs.
+  const currentPoint =
+    activePoints && activePoints.length > 0
+      ? activePoints[Math.min(currentTimeIndex, activePoints.length - 1)]
+      : undefined;
 
   // Real historical weather at the current playhead moment. Coordinates are
   // rounded (≈11km) and the time floored to the hour so the query key stays
@@ -625,13 +645,18 @@ export default function Home() {
       if (p.lon < minLon) minLon = p.lon;
       if (p.lon > maxLon) maxLon = p.lon;
     }
+    if (![minLat, maxLat, minLon, maxLon].every(Number.isFinite)) return;
     // tiny pad so single-cluster tracks don't get over-zoomed
     const dLat = Math.max(0.001, (maxLat - minLat) * 0.1);
     const dLon = Math.max(0.001, (maxLon - minLon) * 0.1);
-    map.fitBounds(
-      [[minLon - dLon, minLat - dLat], [maxLon + dLon, maxLat + dLat]],
-      { padding: 80, duration: 1200, maxZoom: 14 },
-    );
+    try {
+      map.fitBounds(
+        [[minLon - dLon, minLat - dLat], [maxLon + dLon, maxLat + dLat]],
+        { padding: 80, duration: 1200, maxZoom: 14 },
+      );
+    } catch {
+      // A degenerate/invalid bounds must never take down the whole view.
+    }
   }, [activePoints]);
 
   useEffect(() => {
