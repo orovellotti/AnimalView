@@ -44,3 +44,13 @@ The /api/streetview-image route must FETCH the Google Street View Static image s
 **Why:** An earlier version fell back to the closest available hour and defaulted `weatherCode ?? 0`, both of which fabricate plausible-but-invented weather — same class of violation as the demo-track fallback.
 
 **How to apply:** Frontend (`home.tsx`) rounds lat/lon to 0.1 and floors the timestamp to the UTC hour for the query key (`staleTime: Infinity`) so playback doesn't flood the API; server caches by `lat(1dp):lon(1dp):hourIso`. New 200 responses in openapi.yaml must be INLINE, not named components (Orval filename collision).
+
+## Study citations & "View study page" links
+
+Each study carries optional `citation` and `url` fields (added to openapi.yaml `Study`, shown in `home.tsx` under the study selector + a "View study page" button gated on `individualId && selectedStudy.url`).
+
+**Rule:** Citations and study-page URLs must be REAL/verified, never synthesized. Don't build a fake "citation" string from name+PI, and don't link to an unverified Movebank study ID (confirmed study 463673774 is savanna elephant, NOT the Nki forest elephant — wrong-study links are a fabrication).
+
+**Movebank API constraint:** The direct-read study-list and explicit `attributes=` queries return **HTTP 403** here (each study needs per-account license acceptance), so citations and numeric study IDs CANNOT be pulled programmatically. Use verified web sources instead.
+
+**Movebank study-page URL pattern (verified):** `https://www.movebank.org/cms/webapp?gwt_fragment=page=studies,path=study<numericId>`. Only construct it when the id is purely numeric (Movebank dynamic studies; bundled boutin = 492444603). Bundled studies without a verified page (nki-elephant) get no url ⇒ no button, by design.

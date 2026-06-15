@@ -144,6 +144,7 @@ export function listRealStudies(species: string): {
   principalInvestigator?: string;
   location?: string;
   citation?: string;
+  url?: string;
 }[] {
   if (species === "wolf") {
     return [
@@ -154,6 +155,7 @@ export function listRealStudies(species: string): {
         location: "Slovenia → Lessinia, Italian Alps",
         citation:
           "Approximate reconstruction. Source: SloWolf project, University of Ljubljana — documented long-distance dispersal of wolf “Slavc” (Dinaric population → Lessinia), 2011–2012.",
+        url: "https://www.volkovi.si/?lang=en",
       },
       {
         id: "boutin-alberta-wolf",
@@ -162,6 +164,7 @@ export function listRealStudies(species: string): {
         location: "Northeastern Alberta, Canada",
         citation:
           "Boutin, S. “ABoVE: Boutin Alberta Grey Wolf”, Department of Biological Sciences, University of Alberta. Accessed via Movebank.org (study 492444603).",
+        url: "https://www.movebank.org/cms/webapp?gwt_fragment=page=studies,path=study492444603",
       },
     ];
   }
@@ -174,6 +177,7 @@ export function listRealStudies(species: string): {
         location: "Western Alps, France",
         citation:
           "Parc national des Écrins. “Monitoring of Capra ibex populations in the western Alps” (programme ALCOTRA LEMED-IBEX). Accessed via Movebank.org.",
+        url: "https://www.areeprotettealpimarittime.it/attivita/progetti-europei/alcotra-lemed-ibex",
       },
     ];
   }

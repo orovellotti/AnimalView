@@ -55,6 +55,7 @@ import {
   TrainFront,
   Waves,
   Building2,
+  ExternalLink,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -930,6 +931,23 @@ export default function Home() {
                     ))}
                   </SelectContent>
                 </Select>
+                {individualId && selectedStudy?.url ? (
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2 font-mono text-xs"
+                  >
+                    <a
+                      href={selectedStudy.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 mr-2" />
+                      {t("controls.viewStudy")}
+                    </a>
+                  </Button>
+                ) : null}
               </div>
 
               <div className="space-y-4 pt-4 border-t border-border">

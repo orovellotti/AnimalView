@@ -12,4 +12,5 @@ export interface Study {
   principalInvestigator?: string;
   location?: string;
   citation?: string;
+  url?: string;
 }

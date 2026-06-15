@@ -63,6 +63,7 @@ export type MovebankStudy = {
   principalInvestigator?: string;
   location?: string;
   citation?: string;
+  url?: string;
 };
 
 export type MovebankIndividual = {
@@ -106,6 +107,9 @@ export async function searchMovebankStudies(
       principalInvestigator: pi,
       location: r["study_objective"] || undefined,
       citation: r["citation"] || undefined,
+      url: /^\d+$/.test(id)
+        ? `https://www.movebank.org/cms/webapp?gwt_fragment=page=studies,path=study${id}`
+        : undefined,
     };
   });
 }
