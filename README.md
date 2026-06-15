@@ -4,7 +4,8 @@
 
 It serves **only real data**: real movement tracks (e.g. Movebank studies), real ground-level imagery (Mapillary, Google Street View / Photo Spheres) and real OpenStreetMap features. Nothing is fabricated — when no real data exists for a location, the app shows nothing rather than inventing it.
 
-![AnimalView screenshot](docs/screenshot.png)
+
+<img width="1297" height="963" alt="image" src="https://github.com/user-attachments/assets/9eb1f991-caa0-499c-8d3f-c6cbe7bfe6b2" />
 
 _The "Candidate Context" panel reconstructs what the animal could have seen at the current point along its track — real ground-level imagery, historical weather at the exact time and place, and the nearest human infrastructure._
 
