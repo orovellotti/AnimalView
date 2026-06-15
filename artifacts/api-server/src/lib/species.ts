@@ -23,4 +23,10 @@ export const SPECIES = [
     scientificName: "Capra ibex",
     habitat: "High-altitude rocky slopes, European Alps",
   },
+  {
+    id: "elephant",
+    commonName: "African Forest Elephant",
+    scientificName: "Loxodonta cyclotis",
+    habitat: "Congo Basin rainforest, Central Africa",
+  },
 ];

@@ -25,18 +25,29 @@ function resolveDataDir(): string {
 
 const DATA_DIR = resolveDataDir();
 
-const CATALOGS: Record<string, { name: string; file: string }> = {
+const CATALOGS: Record<
+  string,
+  { name: string; file: string; individualPrefix?: string }
+> = {
   "boutin-alberta-wolf": {
     name: "Boutin Alberta Grey Wolf",
     file: "boutin_alberta_wolf.csv",
+    individualPrefix: "Wolf",
   },
   "slavc-dispersal": {
     name: "Slavc Dispersal (approx.)",
     file: "slavc_dispersal.csv",
+    individualPrefix: "Wolf",
   },
   "alcotra-lemed-ibex": {
     name: "ALCOTRA LEMED-IBEX — Capra ibex (Western Alps)",
     file: "alexandre_pne_ibex.csv",
+    individualPrefix: "Ibex",
+  },
+  "nki-elephant": {
+    name: "Elephant Research — Nki National Park (Cameroon)",
+    file: "nki_elephant_40480.csv",
+    individualPrefix: "Collar",
   },
 };
 
@@ -159,6 +170,15 @@ export function listRealStudies(species: string): {
       },
     ];
   }
+  if (species === "elephant") {
+    return [
+      {
+        id: "nki-elephant",
+        name: "Elephant Research — Nki National Park (Cameroon)",
+        location: "Nki National Park, Cameroon",
+      },
+    ];
+  }
   return [];
 }
 
@@ -167,9 +187,13 @@ export function listRealIndividuals(
 ): { id: string; name: string }[] {
   const cat = ensureLoaded().get(studyId);
   if (!cat) return [];
+  const prefix = CATALOGS[studyId]?.individualPrefix;
   return Array.from(cat.individuals.keys())
     .sort()
-    .map((id) => ({ id, name: /^\d+$/.test(id) ? `Wolf ${id}` : id }));
+    .map((id) => ({
+      id,
+      name: prefix && /^\d+$/.test(id) ? `${prefix} ${id}` : id,
+    }));
 }
 
 export function getRealTrack(
