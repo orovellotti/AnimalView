@@ -235,6 +235,84 @@ async function wikimediaNearby(
   return result;
 }
 
+// GBIF (Global Biodiversity Information Facility) is an open, key-less API of
+// real, verified species occurrence records — many with photographs taken by
+// naturalists at the observation site. Unlike Street View / Mapillary (which
+// show terrain), these are genuine photos of the species and its surroundings
+// near the animal's recorded path. Resolve the scientific name to a GBIF
+// taxonKey once, then query occurrences carrying a StillImage near each point.
+const gbifTaxonCache = new Map<string, number | null>();
+async function gbifTaxonKey(scientificName: string): Promise<number | null> {
+  const name = scientificName.trim();
+  if (!name) return null;
+  if (gbifTaxonCache.has(name)) return gbifTaxonCache.get(name) ?? null;
+  try {
+    const r = await fetch(
+      `https://api.gbif.org/v1/species/match?name=${encodeURIComponent(name)}`,
+      { headers: { "User-Agent": "AnimalView/1.0 (wildlife tracker)" } },
+    );
+    // Only cache a definitive answer from a successful response. A transient
+    // network error or non-2xx must NOT be cached, otherwise one hiccup would
+    // suppress GBIF for that species until the process restarts.
+    if (!r.ok) return null;
+    const j = (await r.json()) as { usageKey?: number; speciesKey?: number };
+    const key = j.usageKey ?? j.speciesKey ?? null;
+    gbifTaxonCache.set(name, key);
+    return key;
+  } catch {
+    return null;
+  }
+}
+
+async function gbifNearby(
+  lat: number,
+  lon: number,
+  radius: number,
+  taxonKey: number,
+): Promise<{ id: string; lat: number; lon: number; date?: string; thumbUrl: string }[]> {
+  const cacheKey = `gbif:${taxonKey}:${lat.toFixed(3)}:${lon.toFixed(3)}:${radius}`;
+  if (metadataCache.has(cacheKey)) {
+    return metadataCache.get(cacheKey) as never;
+  }
+  const url =
+    `https://api.gbif.org/v1/occurrence/search?mediaType=StillImage` +
+    `&taxonKey=${taxonKey}&geoDistance=${lat},${lon},${Math.round(radius)}m&limit=20`;
+  const r = await fetch(url, {
+    headers: { "User-Agent": "AnimalView/1.0 (wildlife tracker)" },
+  });
+  if (!r.ok) {
+    metadataCache.set(cacheKey, []);
+    return [];
+  }
+  const j = (await r.json()) as {
+    results?: {
+      key?: number;
+      gbifID?: string;
+      decimalLatitude?: number;
+      decimalLongitude?: number;
+      eventDate?: string;
+      media?: { type?: string; identifier?: string }[];
+    }[];
+  };
+  const out: { id: string; lat: number; lon: number; date?: string; thumbUrl: string }[] = [];
+  for (const o of j.results ?? []) {
+    if (o.decimalLatitude == null || o.decimalLongitude == null) continue;
+    const media = (o.media ?? []).find(
+      (m) => (m.type === "StillImage" || !m.type) && m.identifier,
+    );
+    if (!media?.identifier) continue;
+    out.push({
+      id: String(o.key ?? o.gbifID ?? media.identifier),
+      lat: o.decimalLatitude,
+      lon: o.decimalLongitude,
+      date: o.eventDate,
+      thumbUrl: media.identifier,
+    });
+  }
+  metadataCache.set(cacheKey, out);
+  return out;
+}
+
 router.get("/providers", (_req, res) => {
   const data = GetProvidersResponse.parse({
     google: hasGoogle(),
@@ -250,7 +328,7 @@ router.post("/match-imagery", async (req, res) => {
     res.status(400).json({ error: "invalid request body" });
     return;
   }
-  const { points, providers } = parsed.data;
+  const { points, providers, scientificName } = parsed.data;
   // Clamp to the UI's Search Radius range (500–10000m). Because the match
   // threshold now follows radius, an unbounded value would pull in weakly
   // relevant photos far from the track, so enforce the contract server-side.
@@ -286,6 +364,7 @@ router.post("/match-imagery", async (req, res) => {
   // requested OR as a fallback when no other real provider is configured.
   const wantWikimedia =
     providers.includes("wikimedia") || (!wantGoogle && !wantMapillary);
+  const wantGbif = providers.includes("gbif") && !!scientificName?.trim();
 
   // Probe one sampled point across every requested provider.
   const probe = async (s: {
@@ -375,6 +454,52 @@ router.post("/match-imagery", async (req, res) => {
     const batch = sampled.slice(i, i + CONCURRENCY);
     const results = await Promise.all(batch.map((s) => probe(s!)));
     for (const r of results) matches.push(...r);
+  }
+
+  // GBIF occurrence media: a single resolved taxonKey, then a query per sampled
+  // point. GBIF returns many occurrences per point, so sample more coarsely than
+  // the street-imagery probes to keep outbound fanout bounded while still
+  // spreading photo searches along the whole path.
+  if (wantGbif && scientificName) {
+    const taxonKey = await gbifTaxonKey(scientificName);
+    if (taxonKey != null) {
+      const GBIF_MAX_POINTS = 30;
+      let gbifSamples = sampled;
+      if (gbifSamples.length > GBIF_MAX_POINTS) {
+        const step = Math.ceil(gbifSamples.length / GBIF_MAX_POINTS);
+        gbifSamples = gbifSamples.filter((_, i) => i % step === 0);
+      }
+      for (let i = 0; i < gbifSamples.length; i += CONCURRENCY) {
+        const batch = gbifSamples.slice(i, i + CONCURRENCY);
+        const results = await Promise.all(
+          batch.map(async (s) => {
+            try {
+              return await gbifNearby(s!.point.lat, s!.point.lon, radius, taxonKey);
+            } catch (err) {
+              req.log.warn({ err }, "gbif fetch failed");
+              return [];
+            }
+          }),
+        );
+        for (let b = 0; b < results.length; b++) {
+          const s = batch[b]!;
+          for (const g of results[b]!) {
+            const distanceM = haversineMeters(s.point, { lat: g.lat, lon: g.lon });
+            matches.push({
+              trackPointIndex: s.originalIndex,
+              provider: "gbif",
+              distanceM,
+              imageId: g.id,
+              imageLat: g.lat,
+              imageLon: g.lon,
+              imageDate: g.date,
+              confidence: confidenceForDistance(distanceM),
+              previewUrl: g.thumbUrl,
+            });
+          }
+        }
+      }
+    }
   }
   // Keep photos near the track: measure the true distance from each photo's
   // location to the track polyline (not just to the sampled query point) and

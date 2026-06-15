@@ -11,5 +11,7 @@ export interface MatchImageryRequest {
   /** Search radius in meters */
   radius: number;
   providers: string[];
+  /** Species scientific name, used to query GBIF occurrence media */
+  scientificName?: string;
   points: TrackPoint[];
 }

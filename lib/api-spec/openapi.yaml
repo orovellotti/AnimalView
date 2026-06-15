@@ -414,6 +414,9 @@ components:
           type: array
           items:
             type: string
+        scientificName:
+          type: string
+          description: Species scientific name, used to query GBIF occurrence media
         points:
           type: array
           items:
@@ -426,7 +429,7 @@ components:
           type: integer
         provider:
           type: string
-          description: "google | mapillary | wikimedia"
+          description: "google | mapillary | wikimedia | gbif"
         distanceM:
           type: number
         panoId:

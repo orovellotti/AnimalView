@@ -112,6 +112,7 @@ export const GetWeatherResponse = zod.object({
 export const MatchImageryBody = zod.object({
   "radius": zod.number().describe('Search radius in meters'),
   "providers": zod.array(zod.string()),
+  "scientificName": zod.string().optional().describe('Species scientific name, used to query GBIF occurrence media'),
   "points": zod.array(zod.object({
   "lat": zod.number(),
   "lon": zod.number(),
@@ -123,7 +124,7 @@ export const MatchImageryResponse = zod.object({
   "mode": zod.string().describe('real'),
   "matches": zod.array(zod.object({
   "trackPointIndex": zod.number(),
-  "provider": zod.string().describe('google | mapillary | wikimedia'),
+  "provider": zod.string().describe('google | mapillary | wikimedia | gbif'),
   "distanceM": zod.number(),
   "panoId": zod.string().optional(),
   "imageId": zod.string().optional(),

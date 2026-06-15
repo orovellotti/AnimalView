@@ -50,12 +50,14 @@ export interface MatchImageryRequest {
   /** Search radius in meters */
   radius: number;
   providers: string[];
+  /** Species scientific name, used to query GBIF occurrence media */
+  scientificName?: string;
   points: TrackPoint[];
 }
 
 export interface ImageryMatch {
   trackPointIndex: number;
-  /** google | mapillary | wikimedia */
+  /** google | mapillary | wikimedia | gbif */
   provider: string;
   distanceM: number;
   panoId?: string;

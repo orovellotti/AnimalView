@@ -363,7 +363,8 @@ export default function Home() {
         data: {
           points: trackReq.data.points,
           radius,
-          providers: ["google", "mapillary", "wikimedia"],
+          providers: ["google", "mapillary", "wikimedia", "gbif"],
+          scientificName: selectedSpecies?.scientificName,
         },
       });
       // New result set: drop any stale selection and re-arm auto-follow so the
@@ -656,21 +657,30 @@ export default function Home() {
     const pt = turf.point([currentPoint.lon, currentPoint.lat]);
     let closest = null;
     let minDistance = Infinity;
-    // Show the closest available image within the user's search radius (with a
-    // small floor) so context imagery actually surfaces as the animal moves —
-    // a 100m gate left the panel empty almost everywhere.
+    // Track the single nearest match overall as a fallback so the panel is
+    // never left empty when photos exist — the user must always be able to see
+    // (and browse) the matched context pictures, even if none happen to sit
+    // near the current playhead position.
+    let nearest = null;
+    let nearestDistance = Infinity;
+    // Prefer the closest available image within the user's search radius (with a
+    // small floor) so context imagery tracks the animal as it moves.
     const maxDistance = Math.max(radius, 1500);
     for (const match of imageryMatches) {
       if (match.imageLon && match.imageLat) {
         const matchPt = turf.point([match.imageLon, match.imageLat]);
         const dist = turf.distance(pt, matchPt, { units: "meters" });
+        if (dist < nearestDistance) {
+          nearestDistance = dist;
+          nearest = match;
+        }
         if (dist <= maxDistance && dist < minDistance) {
           minDistance = dist;
           closest = match;
         }
       }
     }
-    setActiveMatch(closest);
+    setActiveMatch(closest ?? nearest);
   }, [mode, currentPoint, imageryMatches, radius]);
 
   // --- Photo stepper: candidate images ordered along the track ---
@@ -1738,6 +1748,43 @@ export default function Home() {
                     {t("ctx.next")}
                     <ChevronRight className="w-4 h-4" />
                   </Button>
+                </div>
+              )}
+
+              {orderedMatches.length > 1 && (
+                <div className="space-y-2">
+                  <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
+                    {t("ctx.allPhotos", { count: orderedMatches.length })}
+                  </p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {orderedMatches.map((o, idx) => (
+                      <button
+                        type="button"
+                        key={`${o.match.provider}:${o.match.imageId ?? o.match.panoId ?? idx}`}
+                        onClick={() => goToPhoto(idx)}
+                        aria-label={`${o.match.provider} ${idx + 1}`}
+                        className={`relative aspect-square overflow-hidden rounded-sm border transition-all ${
+                          idx === currentPhotoIndex
+                            ? "border-primary ring-1 ring-primary"
+                            : "border-border/60 hover:border-primary/60"
+                        }`}
+                      >
+                        {o.match.previewUrl ? (
+                          <img
+                            src={o.match.previewUrl}
+                            alt=""
+                            loading="lazy"
+                            className="object-cover w-full h-full"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-muted" />
+                        )}
+                        <span className="absolute bottom-0 left-0 right-0 px-1 py-0.5 bg-black/60 text-[7px] font-mono uppercase tracking-wider text-white/80 truncate">
+                          {o.match.provider}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
