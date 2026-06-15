@@ -1746,6 +1746,8 @@ export default function Home() {
                   <img
                     src={activeMatch.previewUrl}
                     alt={t("ctx.candidateAlt")}
+                    loading="lazy"
+                    decoding="async"
                     className="object-cover w-full h-full opacity-80 mix-blend-screen grayscale-[20%] contrast-125"
                   />
                 ) : (
@@ -1834,6 +1836,7 @@ export default function Home() {
                             src={o.match.previewUrl}
                             alt=""
                             loading="lazy"
+                            decoding="async"
                             className="object-cover w-full h-full"
                           />
                         ) : (

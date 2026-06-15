@@ -264,6 +264,34 @@ async function gbifTaxonKey(scientificName: string): Promise<number | null> {
   }
 }
 
+// iNaturalist (the dominant GBIF media host) serves multi-megabyte "original"
+// images. The candidate panel mounts every match as an <img> (large preview +
+// thumbnail grid), so loading dozens of originals exhausts the browser tab's
+// memory and crashes it. Request the ~500px "medium" variant instead (~100 KB).
+// Hosts whose resize scheme we don't know are left untouched.
+function gbifPreviewUrl(identifier: string): string {
+  try {
+    const u = new URL(identifier);
+    const isINaturalist =
+      u.hostname === "inaturalist-open-data.s3.amazonaws.com" ||
+      u.hostname === "static.inaturalist.org" ||
+      u.hostname.endsWith(".inaturalist.org");
+    if (isINaturalist) {
+      // Rewrite the "original" path segment to "medium" via the parsed pathname
+      // (case-insensitive, extension-agnostic) so query string and hash are
+      // preserved and uncommon URL shapes are still downsized.
+      u.pathname = u.pathname.replace(
+        /\/original(\.\w+)?$/i,
+        (_m, ext: string | undefined) => `/medium${ext ?? ""}`,
+      );
+      return u.toString();
+    }
+  } catch {
+    // not a parseable URL — fall through and return as-is
+  }
+  return identifier;
+}
+
 async function gbifNearby(
   lat: number,
   lon: number,
@@ -306,7 +334,7 @@ async function gbifNearby(
       lat: o.decimalLatitude,
       lon: o.decimalLongitude,
       date: o.eventDate,
-      thumbUrl: media.identifier,
+      thumbUrl: gbifPreviewUrl(media.identifier),
     });
   }
   metadataCache.set(cacheKey, out);

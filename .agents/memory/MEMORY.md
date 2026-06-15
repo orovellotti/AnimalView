@@ -9,5 +9,6 @@
 - [Overpass mirrors](overpass-mirrors.md) — overpass-api.de ECONNREFUSED here; use overpass.openstreetmap.fr first; split dense alpine queries into parallel sparse+trails, cache partial results with short TTL.
 - [react-map-gl Source key](react-map-gl-source-key.md) — conditional <Source> siblings must each carry a stable `key`; without it toggling sources throws "source id changed" and crashes the map.
 - [Map crash from invalid coords](map-invalid-coords-crash.md) — sanitize track/sim points (finite, in-range lat/lon) before MapLibre Source/fitBounds; one bad row throws an uncaught error that blanks the map on id switch.
+- [GBIF image payload crash](gbif-image-payload-crash.md) — GBIF/iNaturalist preview URLs are multi-MB originals; downsize to /medium server-side or the gallery's many <img>s OOM-crash the browser tab.
 - [AnimalView bilingual i18n](i18n-bilingual.md) — FR default, localStorage `animalview-lang`, useLang/t in i18n.tsx, toggle on map+landing.
 - [GBIF context imagery](gbif-imagery.md) — open key-less real-photo provider (taxonKey via species/match + occurrence geoDistance); needs scientificName in body; panel auto-follow must fall back to nearest match or activeMatch goes null and gallery vanishes.
