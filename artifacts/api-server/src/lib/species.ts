@@ -29,4 +29,10 @@ export const SPECIES = [
     scientificName: "Loxodonta cyclotis",
     habitat: "Congo Basin rainforest, Central Africa",
   },
+  {
+    id: "puma",
+    commonName: "Puma",
+    scientificName: "Puma concolor",
+    habitat: "Mountain forests & canyons, western North America",
+  },
 ];

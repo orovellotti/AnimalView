@@ -49,6 +49,11 @@ const CATALOGS: Record<
     file: "nki_elephant_40480.csv",
     individualPrefix: "Collar",
   },
+  "usu-puma-fishlake": {
+    name: "USU: Coyote and Puma (Fishlake NF, UT) — Puma concolor",
+    file: "usu_puma_fishlake.csv",
+    individualPrefix: "Puma",
+  },
 };
 
 let loadedCatalogs: Map<string, Catalog> | null = null;
@@ -178,6 +183,17 @@ export function listRealStudies(species: string): {
         citation:
           "Parc national des Écrins. “Monitoring of Capra ibex populations in the western Alps” (programme ALCOTRA LEMED-IBEX). Accessed via Movebank.org.",
         url: "https://www.areeprotettealpimarittime.it/attivita/progetti-europei/alcotra-lemed-ibex",
+      },
+    ];
+  }
+  if (species === "puma") {
+    return [
+      {
+        id: "usu-puma-fishlake",
+        name: "USU: Coyote and Puma (Fishlake NF, UT)",
+        location: "Fishlake National Forest, Utah, USA",
+        citation:
+          "Utah State University. “USU: Coyote and Puma (Fishlake NF, UT).” GPS telemetry of Puma concolor in the Fishlake National Forest, Utah. Accessed via Movebank.org.",
       },
     ];
   }

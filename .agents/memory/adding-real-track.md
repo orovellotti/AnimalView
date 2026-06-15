@@ -27,3 +27,9 @@ Verify: `curl localhost:80/api/{species,studies?species=X,individuals?studyId=Y,
 
 **Gotcha:** `listRealIndividuals` labels purely-numeric IDs as `Wolf <id>` regardless of species
 (legacy). Non-numeric IDs display verbatim. Fix the label if a future numeric-ID non-wolf dataset lands.
+
+**Mixed-taxon CSV:** AnimalView maps one study → one species, but some Movebank exports bundle
+multiple taxa (e.g. "USU: Coyote and Puma" has both `Canis latrans` and `Puma concolor` in one
+file). Extract only the requested species' rows into a dedicated per-species CSV (filter on
+`individual-taxon-canonical-name`) so the study's individual list isn't contaminated with the
+other taxon. The parser keys only on `individual-local-identifier`, so it won't split taxa for you.
