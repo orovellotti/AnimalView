@@ -211,6 +211,9 @@ export default function Home() {
   const matchImageryMutation = useMatchImagery();
   const [imageryMatches, setImageryMatches] = useState<any[]>([]);
   const [activeMatch, setActiveMatch] = useState<any | null>(null);
+  // Context-imagery panel tab: "human" = terrain/ground views (Street View,
+  // Mapillary, Wikimedia), "wild" = GBIF naturalist photos of the species.
+  const [imageryTab, setImageryTab] = useState<"human" | "wild">("human");
 
   // --- "Through its eyes" AI narrative ---
   const selectedSpecies = useMemo(
@@ -771,6 +774,15 @@ export default function Home() {
     if (idx < 0 || idx >= terrainMatches.length) return;
     goToMatch(terrainMatches[idx]);
   };
+
+  // When a new imagery search loads, land on the tab that actually has photos:
+  // default to "human" terrain views, but jump to "wild" when only GBIF exists.
+  // Lengths only change on a new search, so this never fights manual tab clicks.
+  useEffect(() => {
+    setImageryTab(
+      terrainMatches.length === 0 && gbifMatches.length > 0 ? "wild" : "human",
+    );
+  }, [terrainMatches.length, gbifMatches.length]);
 
   const togglePlay = () => {
     if (!isPlaying) manualPhotoRef.current = false;
@@ -1780,7 +1792,7 @@ export default function Home() {
                 <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 backdrop-blur-sm rounded-sm border border-white/10 text-[9px] font-mono uppercase text-white/80 tracking-widest">
                   {activeMatch.provider}
                 </div>
-                {terrainMatches.length > 1 && (
+                {imageryTab === "human" && terrainMatches.length > 1 && (
                   <>
                     <button
                       type="button"
@@ -1804,7 +1816,30 @@ export default function Home() {
                 )}
               </div>
 
-              {terrainMatches.length > 1 && (
+              {(terrainMatches.length > 0 || gbifMatches.length > 0) && (
+                <div className="flex bg-muted/30 border border-border/50 rounded-sm overflow-hidden">
+                  {([
+                    { id: "human" as const, count: terrainMatches.length },
+                    { id: "wild" as const, count: gbifMatches.length },
+                  ]).map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setImageryTab(tab.id)}
+                      className={`flex-1 px-3 py-2 text-[10px] font-mono uppercase tracking-widest transition-colors ${
+                        imageryTab === tab.id
+                          ? "bg-primary/20 text-primary"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {t(`ctx.tab.${tab.id}`)}
+                      <span className="ml-1.5 tabular-nums opacity-70">{tab.count}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {imageryTab === "human" && terrainMatches.length > 1 && (
                 <div className="flex items-center justify-between gap-2">
                   <Button
                     type="button"
@@ -1834,11 +1869,14 @@ export default function Home() {
                 </div>
               )}
 
-              {terrainMatches.length > 1 && (
+              {imageryTab === "human" && terrainMatches.length === 0 && (
+                <p className="text-[10px] font-mono leading-relaxed text-muted-foreground/70">
+                  {t("ctx.terrainEmpty")}
+                </p>
+              )}
+
+              {imageryTab === "human" && terrainMatches.length > 1 && (
                 <div className="space-y-2">
-                  <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-                    {t("ctx.terrainPhotos", { count: terrainMatches.length })}
-                  </p>
                   <div className="grid grid-cols-3 gap-1.5">
                     {terrainMatches.map((o, idx) => (
                       <button
@@ -1872,17 +1910,14 @@ export default function Home() {
                 </div>
               )}
 
-              {gbifMatches.length > 0 && (
-                <div className="space-y-2 pt-3 border-t border-border/50">
-                  <div className="flex items-center gap-2">
-                    <Camera className="w-3 h-3 text-primary" />
-                    <span className="text-[9px] font-mono uppercase tracking-widest text-primary">
-                      {t("ctx.gbifTitle")}
-                    </span>
-                    <span className="text-[9px] font-mono text-muted-foreground tabular-nums">
-                      {gbifMatches.length}
-                    </span>
-                  </div>
+              {imageryTab === "wild" && gbifMatches.length === 0 && (
+                <p className="text-[10px] font-mono leading-relaxed text-muted-foreground/70">
+                  {t("ctx.gbifEmpty")}
+                </p>
+              )}
+
+              {imageryTab === "wild" && gbifMatches.length > 0 && (
+                <div className="space-y-2">
                   <p className="text-[9px] font-mono leading-relaxed text-muted-foreground/60">
                     {t("ctx.gbifHint")}
                   </p>
