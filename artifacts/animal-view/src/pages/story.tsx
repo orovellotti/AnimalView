@@ -93,6 +93,23 @@ function cleanPoints(raw: TrackPoint[] | undefined | null): TrackPoint[] {
   );
 }
 
+// Session-level cache of fully-built stories. Building a story is expensive
+// (imagery matching across providers + weather + Gemini narration per chapter),
+// so once an animal's story is built we keep the whole result in memory keyed by
+// species/study/individual. Re-selecting the same animal then restores instantly
+// instead of re-running the pipeline. This is real data — we cache what was
+// already fetched, we never fabricate it.
+type BuiltStory = {
+  chapters: Chapter[];
+  cover: Cover | null;
+  storyPoints: TrackPoint[];
+};
+// Note: `Map` is shadowed by the react-map-gl <Map> import in this file, so use
+// the global Map constructor explicitly.
+const storyCache = new globalThis.Map<string, BuiltStory>();
+const storyCacheKey = (sp: string, st: string, ind: string) =>
+  `${sp}::${st}::${ind}`;
+
 export default function Story() {
   const { lang, setLang, t } = useLang();
   const locale = lang === "fr" ? "fr-FR" : "en-US";
@@ -175,6 +192,19 @@ export default function Story() {
     const points = cleanPoints(trackReq.data?.points);
     if (points.length < 2) return;
     setBuildError(null);
+
+    // Instant restore if this exact animal's story was already built this session.
+    const cacheKey = storyCacheKey(speciesId, studyId, individualId);
+    const cached = storyCache.get(cacheKey);
+    if (cached) {
+      setStoryPoints(cached.storyPoints);
+      setCover(cached.cover);
+      setChapters(cached.chapters);
+      setActiveStep(-1);
+      setPhase("done");
+      return;
+    }
+
     setChapters(null);
     setCover(null);
     setActiveStep(-1);
@@ -223,7 +253,7 @@ export default function Story() {
         Number.isFinite(startMs) && Number.isFinite(endMs)
           ? Math.max(1, Math.round((endMs - startMs) / 86400000))
           : 0;
-      setCover({
+      const builtCover: Cover = {
         speciesName: selectedSpecies?.commonName ?? "",
         scientificName: selectedSpecies?.scientificName,
         individualName: individualId,
@@ -235,11 +265,19 @@ export default function Story() {
         pointCount: points.length,
         startDate: points[0].timestamp,
         endDate: points[points.length - 1].timestamp,
-      });
+      };
+      setCover(builtCover);
 
       if (terrain.length === 0) {
         setChapters([]);
         setPhase("done");
+        // Cache the (valid) "no imagery here" result so we don't re-query the
+        // providers for the same animal again this session.
+        storyCache.set(cacheKey, {
+          chapters: [],
+          cover: builtCover,
+          storyPoints: points,
+        });
         return;
       }
 
@@ -366,6 +404,12 @@ export default function Story() {
       setChapters(enriched);
       setActiveStep(-1);
       setPhase("done");
+      // Keep the fully-enriched story so re-selecting this animal is instant.
+      storyCache.set(cacheKey, {
+        chapters: enriched,
+        cover: builtCover,
+        storyPoints: points,
+      });
     } catch {
       setBuildError(t("story.error"));
       setPhase("idle");
