@@ -42,3 +42,12 @@ When composing a chapter-based experience from `matchImagery` along a GPS track:
   reject, so a transient failure/timeout/non-2xx is NEVER cached (provider fns throw
   on `!r.ok` instead of caching null). Only definitive "no data here" (resolved
   null/[]) is cached. Verified: cold ~2.5s → warm ~0.06s.
+
+- **3D terrain on the StoryMap map** uses a `raster-dem` source draped under the
+  Esri satellite raster, declared via a top-level `terrain` key in the MapLibre
+  style object (react-map-gl applies it on load). DEM = AWS open "Terrain Tiles"
+  (`elevation-tiles-prod/terrarium/{z}/{x}/{y}.png`, `encoding: "terrarium"`,
+  maxzoom 15) — key-less, real elevation, fits the real-data-only policy. Camera
+  gets `pitch`/`bearing` in flyTo (chapters) and fitBounds (overview).
+  **Gotcha:** the installed `maplibre-gl` is **v4.x** — the `sky` layer type does
+  NOT exist until v5, so don't add a `{type:"sky"}` layer (it breaks the style).

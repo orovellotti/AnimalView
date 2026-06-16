@@ -409,7 +409,15 @@ export default function Story() {
           [minLon - dLon, minLat - dLat],
           [maxLon + dLon, maxLat + dLat],
         ],
-        { padding: { top: 80, bottom: 80, left: 80, right: 80 }, duration: 1400, maxZoom: 13 },
+        {
+          padding: { top: 80, bottom: 80, left: 80, right: 80 },
+          duration: 1400,
+          maxZoom: 13,
+          // A gentle tilt on the overview hints at the 3D relief without losing
+          // the whole-track read.
+          pitch: 40,
+          bearing: 0,
+        },
       );
     } catch {
       /* never let a degenerate bounds blank the map */
@@ -427,8 +435,13 @@ export default function Story() {
       try {
         map.flyTo({
           center: [c.lon, c.lat],
-          zoom: 13.5,
-          duration: 1600,
+          zoom: 14,
+          // Tilt + slight rotation give each chapter a 3D fly-over feel over the
+          // draped terrain. Alternate the bearing so consecutive chapters don't
+          // all face the same way.
+          pitch: 65,
+          bearing: activeStep % 2 === 0 ? -25 : 25,
+          duration: 1800,
           essential: true,
         });
       } catch {
@@ -481,6 +494,18 @@ export default function Story() {
           tileSize: 256,
           maxzoom: 19,
         },
+        // Real elevation data (AWS open "Terrain Tiles", terrarium-encoded) —
+        // key-less, public DEM used to extrude the satellite imagery into 3D.
+        "terrain-dem": {
+          type: "raster-dem",
+          tiles: [
+            "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
+          ],
+          tileSize: 256,
+          encoding: "terrarium",
+          maxzoom: 15,
+          attribution: "Elevation: AWS Terrain Tiles / Mapzen",
+        },
       },
       layers: [
         { id: "esri-satellite", type: "raster", source: "esri-satellite" },
@@ -491,6 +516,9 @@ export default function Story() {
           paint: { "raster-opacity": 0.85 },
         },
       ],
+      // Drape the imagery over the DEM. Exaggeration sharpens relief in gentle
+      // terrain without looking cartoonish in the Alps.
+      terrain: { source: "terrain-dem", exaggeration: 1.4 },
     }),
     [],
   );
