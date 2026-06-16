@@ -12,3 +12,4 @@
 - [GBIF image payload crash](gbif-image-payload-crash.md) — GBIF/iNaturalist preview URLs are multi-MB originals; downsize to /medium server-side or the gallery's many <img>s OOM-crash the browser tab.
 - [AnimalView bilingual i18n](i18n-bilingual.md) — FR default, localStorage `animalview-lang`, useLang/t in i18n.tsx, toggle on map+landing.
 - [GBIF context imagery](gbif-imagery.md) — open key-less real-photo provider (taxonKey via species/match + occurrence geoDistance); needs scientificName in body; panel auto-follow must fall back to nearest match or activeMatch goes null and gallery vanishes.
+- [StoryMap imagery pipeline](storymap-imagery-pipeline.md) — matchImagery queries providers per point → downsample (~120) + remap index for long tracks; every match (incl google) has previewUrl; raw client fns re-exported for Promise.all enrichment.

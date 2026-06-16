@@ -880,6 +880,13 @@ export default function Home() {
           <p className="text-xs text-muted-foreground uppercase tracking-widest">
             {t("mode.subtitleReal")}
           </p>
+          <Link
+            href="/story"
+            className="mt-3 inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
+          >
+            <Sparkles className="w-3 h-3" />
+            {t("story.kicker")}
+          </Link>
         </div>
 
         <div className="p-6 flex-1 overflow-y-auto space-y-6">

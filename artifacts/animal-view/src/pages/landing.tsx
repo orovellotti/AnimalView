@@ -90,6 +90,12 @@ export default function Landing() {
                 ))}
               </div>
               <Link
+                href="/story"
+                className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {t("story.kicker")}
+              </Link>
+              <Link
                 href="/explore"
                 className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
               >
