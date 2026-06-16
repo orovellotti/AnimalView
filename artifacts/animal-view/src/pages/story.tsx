@@ -72,7 +72,7 @@ type Cover = {
   endDate: string;
 };
 
-const MAX_CHAPTERS = 6;
+const MAX_CHAPTERS = 12;
 const MATCH_RADIUS_M = 1500;
 // Cap how many points we hand to the imagery matcher: it queries providers per
 // point, so a multi-thousand-point track would time out. We still keep full
@@ -253,8 +253,21 @@ export default function Story() {
       );
       const minGap = Math.max(1, Math.floor(points.length / (MAX_CHAPTERS * 2)));
       const picked: { m: ImageryMatch; oi: number }[] = [];
+
+      // Always anchor the story with a "start" and "finish" chapter: the real
+      // matches that sit closest to the first and last track points. This gives
+      // the journey a clear beginning and end instead of starting mid-track.
+      const lastOi = points.length - 1;
+      const startAnchor = [...terrain].sort((a, b) => a.oi - b.oi)[0];
+      const finishAnchor = [...terrain].sort(
+        (a, b) => Math.abs(a.oi - lastOi) - Math.abs(b.oi - lastOi),
+      )[0];
+      if (startAnchor) picked.push(startAnchor);
+      if (finishAnchor && finishAnchor !== startAnchor) picked.push(finishAnchor);
+
       for (const it of byQuality) {
         if (picked.length >= MAX_CHAPTERS) break;
+        if (picked.includes(it)) continue;
         if (picked.every((p) => Math.abs(p.oi - it.oi) >= minGap)) {
           picked.push(it);
         }
