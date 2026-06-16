@@ -27,3 +27,18 @@ When composing a chapter-based experience from `matchImagery` along a GPS track:
 - For "best + spread" chapter selection: sort by confidence rank then ascending
   `distanceM`, greedily pick with an index-gap spacing constraint, then relax to fill.
   Exclude `gbif` (species photos, not ground/terrain) for journey storytelling.
+
+- **Timeouts came from un-bounded provider fetches, not missing cache.** Every
+  provider lookup (`googleMetadata`, `mapillaryNearby`, `wikimediaNearby`,
+  `gbifNearby`, `gbifTaxonKey`) must use `fetchWithTimeout` (AbortController, ~8s) —
+  probes run in batches across many points, so one hung upstream stalled the whole
+  batch until the ~120s global timeout aborted everything. Fail fast → that point
+  just yields no match.
+  **Why:** the in-memory cache only helps repeat builds; the *first* build still
+  hangs without per-fetch timeouts.
+
+- **`metadataCache` stores Promises, not values (`cachedLookup`)** → coalesces
+  concurrent identical-coordinate lookups into one upstream call. It evicts on
+  reject, so a transient failure/timeout/non-2xx is NEVER cached (provider fns throw
+  on `!r.ok` instead of caching null). Only definitive "no data here" (resolved
+  null/[]) is cached. Verified: cold ~2.5s → warm ~0.06s.

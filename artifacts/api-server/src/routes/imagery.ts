@@ -37,7 +37,46 @@ type Match = {
   previewUrl?: string;
 };
 
-const metadataCache = new Map<string, unknown>();
+// Per-request upstream timeout. Provider probes run in batches across many
+// track points, so a single hung Mapillary/GBIF/Wikimedia request would stall
+// its whole batch until the global request timeout (~120s) aborts everything.
+// Failing fast lets the batch proceed and that point simply yields no match.
+const FETCH_TIMEOUT_MS = 8000;
+async function fetchWithTimeout(
+  url: string,
+  init?: RequestInit,
+  timeoutMs = FETCH_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// In-memory result cache with in-flight request coalescing. Storing the pending
+// promise (not just the resolved value) means concurrent lookups of the same
+// rounded coordinate share a single upstream call, and resolved results —
+// including a definitive "no data here" (null / []) — persist for reuse across
+// builds. A rejected lookup (timeout, network error, or non-2xx) is evicted so a
+// transient failure is never cached and is retried on the next request.
+const metadataCache = new Map<string, Promise<unknown>>();
+function cachedLookup<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const existing = metadataCache.get(key);
+  if (existing) return existing as Promise<T>;
+  const p = (async () => {
+    try {
+      return await fn();
+    } catch (err) {
+      metadataCache.delete(key);
+      throw err;
+    }
+  })();
+  metadataCache.set(key, p);
+  return p as Promise<T>;
+}
 
 async function googleMetadata(
   lat: number,
@@ -51,28 +90,25 @@ async function googleMetadata(
   const key = process.env["GOOGLE_MAPS_API_KEY"];
   if (!key) return null;
   const cacheKey = `g:${lat.toFixed(4)}:${lon.toFixed(4)}:${radius}`;
-  if (metadataCache.has(cacheKey)) {
-    return metadataCache.get(cacheKey) as never;
-  }
-  // Use the default source (NOT source=outdoor): in remote mountain terrain the
-  // only Google coverage is user-contributed Photo Spheres people shoot on
-  // trails and peaks, and those are returned by the default source but excluded
-  // by source=outdoor (which only covers official Street View collections).
-  const url = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lon}&radius=${radius}&key=${key}`;
-  const r = await fetch(url);
-  if (!r.ok) return null;
-  const j = (await r.json()) as {
-    status: string;
-    pano_id?: string;
-    location?: { lat: number; lng: number };
-    date?: string;
-  };
-  if (j.status !== "OK") {
-    metadataCache.set(cacheKey, null);
-    return null;
-  }
-  metadataCache.set(cacheKey, j);
-  return j;
+  return cachedLookup(cacheKey, async () => {
+    // Use the default source (NOT source=outdoor): in remote mountain terrain the
+    // only Google coverage is user-contributed Photo Spheres people shoot on
+    // trails and peaks, and those are returned by the default source but excluded
+    // by source=outdoor (which only covers official Street View collections).
+    const url = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lon}&radius=${radius}&key=${key}`;
+    const r = await fetchWithTimeout(url);
+    if (!r.ok) throw new Error(`google metadata HTTP ${r.status}`);
+    const j = (await r.json()) as {
+      status: string;
+      pano_id?: string;
+      location?: { lat: number; lng: number };
+      date?: string;
+    };
+    // A non-OK status (e.g. ZERO_RESULTS) is a definitive "no panorama here",
+    // safe to cache as null so we don't re-probe an empty spot.
+    if (j.status !== "OK") return null;
+    return j;
+  });
 }
 
 async function mapillaryNearby(
@@ -95,52 +131,43 @@ async function mapillaryNearby(
     rawToken?.match(/MLY\|\d+\|[0-9a-f]{32}/i)?.[0] ?? rawToken?.trim();
   if (!token) return null;
   const cacheKey = `m:${lat.toFixed(4)}:${lon.toFixed(4)}:${radius}`;
-  if (metadataCache.has(cacheKey)) {
-    return metadataCache.get(cacheKey) as never;
-  }
-  // ~1e-5 deg ≈ 1.11m. Build a small bbox around the point.
-  let dLat = radius / 111000;
-  let dLon = radius / (111000 * Math.max(0.01, Math.cos((lat * Math.PI) / 180)));
-  // Mapillary rejects bboxes larger than 0.010 sq deg with a 500. If the
-  // requested radius would exceed that, shrink the box (preserving aspect ratio)
-  // so the request still succeeds for a tighter search area.
-  const MAX_BBOX_AREA = 0.0099;
-  const bboxArea = 2 * dLat * (2 * dLon);
-  if (bboxArea > MAX_BBOX_AREA) {
-    const scale = Math.sqrt(MAX_BBOX_AREA / bboxArea);
-    dLat *= scale;
-    dLon *= scale;
-  }
-  const bbox = `${lon - dLon},${lat - dLat},${lon + dLon},${lat + dLat}`;
-  const url = `https://graph.mapillary.com/images?access_token=${token}&fields=id,computed_geometry,captured_at,thumb_1024_url&bbox=${bbox}&limit=1`;
-  const r = await fetch(url);
-  if (!r.ok) {
-    metadataCache.set(cacheKey, null);
-    return null;
-  }
-  const j = (await r.json()) as {
-    data?: {
-      id: string;
-      computed_geometry?: { coordinates: [number, number] };
-      captured_at?: number;
-      thumb_1024_url?: string;
-    }[];
-  };
-  const first = j.data?.[0];
-  if (!first?.computed_geometry) {
-    metadataCache.set(cacheKey, null);
-    return null;
-  }
-  const [mlon, mlat] = first.computed_geometry.coordinates;
-  const result = {
-    id: first.id,
-    lat: mlat,
-    lon: mlon,
-    date: first.captured_at ? new Date(first.captured_at).toISOString() : undefined,
-    thumbUrl: first.thumb_1024_url,
-  };
-  metadataCache.set(cacheKey, result);
-  return result;
+  return cachedLookup(cacheKey, async () => {
+    // ~1e-5 deg ≈ 1.11m. Build a small bbox around the point.
+    let dLat = radius / 111000;
+    let dLon = radius / (111000 * Math.max(0.01, Math.cos((lat * Math.PI) / 180)));
+    // Mapillary rejects bboxes larger than 0.010 sq deg with a 500. If the
+    // requested radius would exceed that, shrink the box (preserving aspect ratio)
+    // so the request still succeeds for a tighter search area.
+    const MAX_BBOX_AREA = 0.0099;
+    const bboxArea = 2 * dLat * (2 * dLon);
+    if (bboxArea > MAX_BBOX_AREA) {
+      const scale = Math.sqrt(MAX_BBOX_AREA / bboxArea);
+      dLat *= scale;
+      dLon *= scale;
+    }
+    const bbox = `${lon - dLon},${lat - dLat},${lon + dLon},${lat + dLat}`;
+    const url = `https://graph.mapillary.com/images?access_token=${token}&fields=id,computed_geometry,captured_at,thumb_1024_url&bbox=${bbox}&limit=1`;
+    const r = await fetchWithTimeout(url);
+    if (!r.ok) throw new Error(`mapillary HTTP ${r.status}`);
+    const j = (await r.json()) as {
+      data?: {
+        id: string;
+        computed_geometry?: { coordinates: [number, number] };
+        captured_at?: number;
+        thumb_1024_url?: string;
+      }[];
+    };
+    const first = j.data?.[0];
+    if (!first?.computed_geometry) return null;
+    const [mlon, mlat] = first.computed_geometry.coordinates;
+    return {
+      id: first.id,
+      lat: mlat,
+      lon: mlon,
+      date: first.captured_at ? new Date(first.captured_at).toISOString() : undefined,
+      thumbUrl: first.thumb_1024_url,
+    };
+  });
 }
 
 async function wikimediaNearby(
@@ -156,9 +183,7 @@ async function wikimediaNearby(
   descriptionUrl: string;
 } | null> {
   const cacheKey = `w:${lat.toFixed(4)}:${lon.toFixed(4)}:${radius}`;
-  if (metadataCache.has(cacheKey)) {
-    return metadataCache.get(cacheKey) as never;
-  }
+  return cachedLookup(cacheKey, async () => {
   // gsradius capped at 10000m by Wikimedia; widen narrow search radii.
   const r = Math.min(10000, Math.max(radius, 5000));
   // Fetch several nearby candidates so a single result missing a thumbnail or
@@ -169,13 +194,10 @@ async function wikimediaNearby(
     `&generator=geosearch&ggsnamespace=6&ggslimit=20` +
     `&ggsradius=${r}&ggscoord=${lat}%7C${lon}` +
     `&prop=imageinfo|coordinates&iiprop=url|extmetadata&iiurlwidth=640`;
-  const resp = await fetch(url, {
+  const resp = await fetchWithTimeout(url, {
     headers: { "User-Agent": "AnimalView/1.0 (open-source bird/wolf tracker)" },
   });
-  if (!resp.ok) {
-    metadataCache.set(cacheKey, null);
-    return null;
-  }
+  if (!resp.ok) throw new Error(`wikimedia HTTP ${resp.status}`);
   const j = (await resp.json()) as {
     query?: {
       pages?: Record<
@@ -194,10 +216,7 @@ async function wikimediaNearby(
     };
   };
   const pages = j.query?.pages;
-  if (!pages) {
-    metadataCache.set(cacheKey, null);
-    return null;
-  }
+  if (!pages) return null;
   // Keep only candidates that actually have a thumbnail and coordinates, then
   // pick the one geographically closest to the track point.
   let best: {
@@ -226,13 +245,10 @@ async function wikimediaNearby(
       };
     }
   }
-  if (!best) {
-    metadataCache.set(cacheKey, null);
-    return null;
-  }
+  if (!best) return null;
   const { dist: _dist, ...result } = best;
-  metadataCache.set(cacheKey, result);
   return result;
+  });
 }
 
 // GBIF (Global Biodiversity Information Facility) is an open, key-less API of
@@ -247,7 +263,7 @@ async function gbifTaxonKey(scientificName: string): Promise<number | null> {
   if (!name) return null;
   if (gbifTaxonCache.has(name)) return gbifTaxonCache.get(name) ?? null;
   try {
-    const r = await fetch(
+    const r = await fetchWithTimeout(
       `https://api.gbif.org/v1/species/match?name=${encodeURIComponent(name)}`,
       { headers: { "User-Agent": "AnimalView/1.0 (wildlife tracker)" } },
     );
@@ -299,46 +315,41 @@ async function gbifNearby(
   taxonKey: number,
 ): Promise<{ id: string; lat: number; lon: number; date?: string; thumbUrl: string }[]> {
   const cacheKey = `gbif:${taxonKey}:${lat.toFixed(3)}:${lon.toFixed(3)}:${radius}`;
-  if (metadataCache.has(cacheKey)) {
-    return metadataCache.get(cacheKey) as never;
-  }
-  const url =
-    `https://api.gbif.org/v1/occurrence/search?mediaType=StillImage` +
-    `&taxonKey=${taxonKey}&geoDistance=${lat},${lon},${Math.round(radius)}m&limit=20`;
-  const r = await fetch(url, {
-    headers: { "User-Agent": "AnimalView/1.0 (wildlife tracker)" },
-  });
-  if (!r.ok) {
-    metadataCache.set(cacheKey, []);
-    return [];
-  }
-  const j = (await r.json()) as {
-    results?: {
-      key?: number;
-      gbifID?: string;
-      decimalLatitude?: number;
-      decimalLongitude?: number;
-      eventDate?: string;
-      media?: { type?: string; identifier?: string }[];
-    }[];
-  };
-  const out: { id: string; lat: number; lon: number; date?: string; thumbUrl: string }[] = [];
-  for (const o of j.results ?? []) {
-    if (o.decimalLatitude == null || o.decimalLongitude == null) continue;
-    const media = (o.media ?? []).find(
-      (m) => (m.type === "StillImage" || !m.type) && m.identifier,
-    );
-    if (!media?.identifier) continue;
-    out.push({
-      id: String(o.key ?? o.gbifID ?? media.identifier),
-      lat: o.decimalLatitude,
-      lon: o.decimalLongitude,
-      date: o.eventDate,
-      thumbUrl: gbifPreviewUrl(media.identifier),
+  return cachedLookup(cacheKey, async () => {
+    const url =
+      `https://api.gbif.org/v1/occurrence/search?mediaType=StillImage` +
+      `&taxonKey=${taxonKey}&geoDistance=${lat},${lon},${Math.round(radius)}m&limit=20`;
+    const r = await fetchWithTimeout(url, {
+      headers: { "User-Agent": "AnimalView/1.0 (wildlife tracker)" },
     });
-  }
-  metadataCache.set(cacheKey, out);
-  return out;
+    if (!r.ok) throw new Error(`gbif HTTP ${r.status}`);
+    const j = (await r.json()) as {
+      results?: {
+        key?: number;
+        gbifID?: string;
+        decimalLatitude?: number;
+        decimalLongitude?: number;
+        eventDate?: string;
+        media?: { type?: string; identifier?: string }[];
+      }[];
+    };
+    const out: { id: string; lat: number; lon: number; date?: string; thumbUrl: string }[] = [];
+    for (const o of j.results ?? []) {
+      if (o.decimalLatitude == null || o.decimalLongitude == null) continue;
+      const media = (o.media ?? []).find(
+        (m) => (m.type === "StillImage" || !m.type) && m.identifier,
+      );
+      if (!media?.identifier) continue;
+      out.push({
+        id: String(o.key ?? o.gbifID ?? media.identifier),
+        lat: o.decimalLatitude,
+        lon: o.decimalLongitude,
+        date: o.eventDate,
+        thumbUrl: gbifPreviewUrl(media.identifier),
+      });
+    }
+    return out;
+  });
 }
 
 router.get("/providers", (_req, res) => {
